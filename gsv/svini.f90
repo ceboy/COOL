@@ -51,9 +51,9 @@ subroutine svini
     end do pressure_initialization
     tracer_initialization : do ix = 1,Nx+2
       if (cell(ix)%center<0.) then
-	cell(ix)%tracer = 2.d0 
+	cell(ix)%tracer = 2.d0*cell(ix)%depth
       else
-	cell(ix)%tracer = 1.d0
+	cell(ix)%tracer = 1.d0*cell(ix)%depth
       endif
     end do tracer_initialization
   !--------------------------------------------------------------------------

@@ -52,11 +52,11 @@ program sv
   write( 2, '('//mystring//'f6.2)') cell(2:(Nx+1))%discharge
   write( 3, '('//mystring//'f6.2)') cell(2:(Nx+1))%velocity
   write( 4, '('//mystring//'f6.2)') cell(2:(Nx+1))%pressure
-  write( 5, '('//mystring//'f6.2)') cell(2:(Nx+1))%tracer
+  write( 5, '('//mystring//'f6.2)') cell(2:(Nx+1))%tracer/cell(2:(Nx+1))%depth
   t_clock = dt_clock
   ! Computations ----------------------------------------------------------------
   print *, 'Entering time loop'
-  allocate( cell1(Nx+2), fluxleft(2,Nx+1), fluxright(2,Nx+1) )
+  allocate( cell1(Nx+2), fluxleft(3,Nx+1), fluxright(3,Nx+1) )
   time_loop : do while((t<Tmax).AND.(nt<Ntmax))
     nt = nt+1 
     ! Boundary Conditions applied to copy cell1 ---------------------------------
@@ -81,14 +81,16 @@ program sv
     cell(2:Nx+1)%depth = cell(2:Nx+1)%depth - dt*fluxright(1,2:Nx+1)/cell(2:Nx+1)%volume 
     cell(2:Nx+1)%discharge = cell(2:Nx+1)%discharge + dt*fluxleft(2,1:Nx)/cell(2:Nx+1)%volume
     cell(2:Nx+1)%discharge = cell(2:Nx+1)%discharge - dt*fluxright(2,2:Nx+1)/cell(2:Nx+1)%volume 
+    cell(2:Nx+1)%tracer = cell(2:Nx+1)%tracer + dt*fluxleft(3,1:Nx)/cell(2:Nx+1)%volume
+    cell(2:Nx+1)%tracer = cell(2:Nx+1)%tracer - dt*fluxright(3,2:Nx+1)/cell(2:Nx+1)%volume 
     cell(2:Nx+1)%velocity = cell(2:Nx+1)%discharge/cell(2:Nx+1)%depth
-    cell(2:Nx+1)%pressure = g*cell(2:Nx+1)%depth**2 
+    cell(2:Nx+1)%pressure = g*cell(2:Nx+1)%depth**2/2
     ! Post-processing -----------------------------------------------------------
     print '("Time step at iteration",i10," = ",e10.3," time = ",f10.2)',nt,dt,t
     thist(1,nt) = t
     thist(2,nt) = t_neighbour*CFL
     thist(3,nt) = dt
-    write( 0, '(3f12.2)') thist(1:3,nt)
+    write( 0, '(3e12.6)') thist(1:3,nt)
     t = t+dt
     if(mylogical) then
       call printout(4)
@@ -98,7 +100,7 @@ program sv
       write( 2, '('//mystring//'f6.2)') cell(2:(Nx+1))%discharge
       write( 3, '('//mystring//'f6.2)') cell(2:(Nx+1))%velocity
       write( 4, '('//mystring//'f6.2)') cell(2:(Nx+1))%pressure
-      write( 5, '('//mystring//'f6.2)') cell(2:(Nx+1))%tracer
+      write( 5, '('//mystring//'f6.2)') cell(2:(Nx+1))%tracer/cell(2:(Nx+1))%depth
       t_clock = t_clock + dt_clock
     end if
   end do time_loop 
@@ -168,26 +170,34 @@ subroutine riemann(fluxleft,fluxright,t_neighbour,cell0,g)
   where( (suliciuvelocity>=0.).AND.( leftvelocity>=0) )
     fluxleft(1,:) = cell0(1:N0-1)%depth*cell0(1:N0-1)%velocity
     fluxleft(2,:) = cell0(1:N0-1)%depth*cell0(1:N0-1)%velocity**2 + cell0(1:N0-1)%pressure
+    fluxleft(3,:) = cell0(1:N0-1)%tracer*cell0(1:N0-1)%velocity
     fluxright(1,:) = fluxleft(1,:)
     fluxright(2,:) = fluxleft(2,:)
+    fluxright(3,:) = fluxleft(3,:)
   end where
   where( (suliciuvelocity>=0.).AND.( leftvelocity<0) )
     fluxleft(1,:) = leftdepth*suliciuvelocity
     fluxleft(2,:) = leftdepth*suliciuvelocity**2 + suliciupressure
+    fluxleft(3,:) = cell0(1:N0-1)%tracer*suliciuvelocity
     fluxright(1,:) = fluxleft(1,:)
     fluxright(2,:) = fluxleft(2,:)
+    fluxright(3,:) = fluxleft(3,:)
   end where
   where( (suliciuvelocity<0.).AND.( rightvelocity>=0) )
     fluxleft(1,:) = rightdepth*suliciuvelocity
     fluxleft(2,:) = rightdepth*suliciuvelocity**2 + suliciupressure
+    fluxleft(3,:) = cell0(2:N0)%tracer*suliciuvelocity
     fluxright(1,:) = fluxleft(1,:)
     fluxright(2,:) = fluxleft(2,:)
+    fluxright(3,:) = fluxleft(3,:)
   end where
   where( (suliciuvelocity<0.).AND.( rightvelocity<0) )
     fluxleft(1,:) = cell0(2:N0)%depth*cell0(2:N0)%velocity
     fluxleft(2,:) = cell0(2:N0)%depth*cell0(2:N0)%velocity**2 + cell0(2:N0)%pressure 
+    fluxleft(3,:) = cell0(2:N0)%tracer*cell0(2:N0)%velocity
     fluxright(1,:) = fluxleft(1,:)
     fluxright(2,:) = fluxleft(2,:)
+    fluxright(3,:) = fluxleft(3,:)
   end where
   where( rightvelocity<0 ) rightvelocity = -rightvelocity
   where( leftvelocity<0 ) leftvelocity = -leftvelocity

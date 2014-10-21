@@ -78,7 +78,7 @@ ax.set_zlim3d(mymin, mymax)
 
 plt.savefig(mystring+'3d.png')
 
-#plt.show() # parfois inutile
+plt.show() # parfois inutile
 
 #   reset
 
