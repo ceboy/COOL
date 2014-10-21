@@ -14,6 +14,7 @@ sv.exe: $(OBJ1)
 # 	$(FC) sv.f90 -o $@ 
 
 clean:
-	$(RM) h.res Q.res u.res P.res
+	$(RM) dt.res h.res Q.res u.res P.res phi.res
 
-cleanall: clean $(EXEC)
+cleanall: clean
+	$(RM) *.mod $(EXEC) *~ *.png
