@@ -1,7 +1,7 @@
 module m_data
   use m_cell
   implicit none
-  integer :: testcase = 1
+  integer :: testcase = 2
   !--------------------------------------------------------------------------
   double precision, parameter :: g = 9.81d0 ! gravity constant
   double precision :: k = 0d0  ! friction parameter

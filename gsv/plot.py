@@ -15,7 +15,7 @@ import sys
 if len(sys.argv) == 2:
   mystring = sys.argv[1]
 else:
-  mystring = 'Nx800/h'
+  mystring = 'h'
 
 filetoplot = mystring+'.res'
 
