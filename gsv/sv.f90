@@ -1,4 +1,3 @@
-! module pour post processing ??
 program sv
   use m_data
   implicit none
@@ -63,7 +62,7 @@ program sv
   write( 3, '('//mystring//'f6.2)') cell1(2:(Nx+1))%velocity
   write( 4, '('//mystring//'f6.2)') cell1(2:(Nx+1))%pressure
   write( 5, '('//mystring//'f6.2)') cell1(2:(Nx+1))%tracer/ &
-    (cell1(2:(Nx+1))%depth*(1.+myzeromachine))
+    (cell1(2:(Nx+1))%depth+myzeromachine*maxval((cell1(2:(Nx+1))%depth)))
   t_clock = dt_clock ! next post-processing
   ! Computations -----------------------------------------------------------------
   print *, 'Entering time loop'
@@ -128,7 +127,7 @@ program sv
       write( 3, '('//mystring//'f6.2)') cell1(2:(Nx+1))%velocity
       write( 4, '('//mystring//'f6.2)') cell1(2:(Nx+1))%pressure
       write( 5, '('//mystring//'f6.2)') cell1(2:(Nx+1))%tracer/ &
-        (cell1(2:(Nx+1))%depth*(1.+myzeromachine))
+        (cell1(2:(Nx+1))%depth+myzeromachine*maxval((cell1(2:(Nx+1))%depth)))
       t_clock = t_clock + dt_clock
     end if
   end do time_loop 
@@ -172,7 +171,6 @@ subroutine riemann(fluxleft,fluxright,t_neighbour,cell0,g)
   double precision, dimension(:), allocatable :: leftvelocity, rightvelocity
   logical, dimension(:), allocatable :: mylogical
   integer :: ii = 0
-  double precision :: mymin = 0.
   !--------------------------------------------------------------------------
   ! interface
   !   subroutine suliciu_initialization( leftparameter, rightparameter, cell0 ) 
@@ -206,65 +204,29 @@ subroutine riemann(fluxleft,fluxright,t_neighbour,cell0,g)
     leftdepth = 0.
     rightdepth = 0.
   !end where
-!   mymin = 1e-16 !maxval(cell0%depth)
-!   do while( ii<N0 )
-!     ii = ii+1
-!     if( (cell0(ii)%depth<mymin).AND.(cell0(ii)%depth>0.) ) mymin = cell0(ii)%depth
-!   end do
-!   print *, mymin
   where( (cell0(1:N0-1)%depth/=0.).AND.(cell0(2:N0)%depth==0.) )
     suliciuvelocity = cell0(1:N0-1)%velocity + cell0(1:N0-1)%pressure/leftparameter
     !suliciupressure = 0.
-!   leftdepth = cell0(1:N0-1)%depth/( 1. + cell0(1:N0-1)%depth*cell0(1:N0-1)%pressure/(leftparameter**2) )
     leftdepth = cell0(1:N0-1)%depth/( 1. + cell0(1:N0-1)%pressure/(leftspeed*leftparameter) )
     !rightdepth = 0.
-!    leftdepth = leftdepth + mymin
   end where
   where( (cell0(1:N0-1)%depth==0.).AND.(cell0(2:N0)%depth/=0.) )
     suliciuvelocity = cell0(2:N0)%velocity - cell0(2:N0)%pressure/rightparameter
     !suliciupressure = 0.
     !leftdepth = 0.
-!   rightdepth = cell0(2:N0)%depth/( 1. + cell0(2:N0)%depth*cell0(2:N0)%pressure/(rightparameter**2) )
     rightdepth = cell0(2:N0)%depth/( 1. + cell0(2:N0)%pressure/(rightspeed*rightparameter) )
-!    rightdepth = rightdepth + mymin
   end where
   where( (cell0(1:N0-1)%depth/=0.).AND.(cell0(2:N0)%depth/=0.) )
     suliciuvelocity = ( leftparameter*cell0(1:N0-1)%velocity + rightparameter*cell0(2:N0)%velocity &
       + cell0(1:N0-1)%pressure - cell0(2:N0)%pressure )/(rightparameter+leftparameter)
     suliciupressure = ( cell0(2:N0)%pressure*leftparameter + cell0(1:N0-1)%pressure*rightparameter &
       + leftparameter*rightparameter*(cell0(1:N0-1)%velocity-cell0(2:N0)%velocity) )/(rightparameter+leftparameter)
-!    end where
-!    where( (cell0(1:N0-1)%depth/=0.).AND.(cell0(2:N0)%depth/=0.) )
     leftdepth = cell0(1:N0-1)%depth / &
-    ( 1. - & ! not a good idea to replace leftspeed=leftparameter/cell0(1:N0-1)%depth below !!!!!!!
-      ( &
-!         ( cell0(2:N0)%pressure - cell0(1:N0-1)%pressure &
-!            + rightparameter*(cell0(1:N0-1)%velocity-cell0(2:N0)%velocity) ) / &
-!         ( leftspeed*(rightparameter+leftparameter) ) &
-        ( suliciupressure - cell0(1:N0-1)%pressure ) / ( leftspeed*leftparameter ) &
-      ) &
-    )
+    ( 1. - (( suliciupressure - cell0(1:N0-1)%pressure ) / ( leftspeed*leftparameter )) )
     rightdepth = cell0(2:N0)%depth / &
-    ( 1. - &! not a good idea to replace rightspeed=rightparameter/cell0(2:N06)%depth below !!!!!!!
-      ( &
-!         ( cell0(1:N0-1)%pressure - cell0(2:N0)%pressure &
-!             + leftparameter*(cell0(1:N0-1)%velocity-cell0(2:N0)%velocity) ) / &
-!         ( rightspeed*(rightparameter+leftparameter) ) &
-        ( suliciupressure - cell0(2:N0)%pressure ) / ( rightspeed*rightparameter ) &
-      ) &
-    )
-!     leftdepth = 1./( 1./cell0(1:N0-1)%depth + (cell0(1:N0-1)%pressure-suliciupressure)/(leftparameter**2) )
-!     leftdepth = 1./( 1./cell0(1:N0-1)%depth + &
-!       ( rightparameter*(cell0(2:N0)%velocity-cell0(1:N0-1)%velocity) &
-!         + cell0(1:N0-1)%pressure - cell0(2:N0)%pressure ) / &
-!       ( leftparameter*(rightparameter+leftparameter) ) )
-!     rightdepth = 1./( 1./cell0(2:N0)%depth + (cell0(2:N0)%pressure-suliciupressure)/(rightparameter**2) )
-!     rightdepth = 1./( 1./cell0(2:N0)%depth + &
-!       ( leftparameter*(cell0(2:N0)%velocity-cell0(1:N0-1)%velocity) &
-!         + cell0(2:N0)%pressure - cell0(1:N0-1)%pressure ) / &
-!       ( rightparameter*(rightparameter+leftparameter) ) )
+    ( 1. - (( suliciupressure - cell0(2:N0)%pressure ) / ( rightspeed*rightparameter )) )
   end where
-  print *, '---------DEBUG-------------'
+!   print *, '---------DEBUG-------------'
 !   print *, N0
 !   mylogical = .FALSE.
 !   where( suliciuvelocity>rightvelocity )
@@ -273,25 +235,25 @@ subroutine riemann(fluxleft,fluxright,t_neighbour,cell0,g)
 !   where( suliciuvelocity<leftvelocity )
 !     mylogical = .TRUE.
 !   end where
-  mylogical = (cell0(1:N0-1)%depth==0.).AND.(cell0(2:N0)%depth==0.)
-  ii = 1
-  do while( mylogical(ii).eqv..FALSE. )
-    ii = ii+1
-  end do
-  print *, ii
-  print *, cell0(ii-1)%depth
-  print *, cell0(ii)%depth
-  print '(20e10.3)', cell0%depth
-!   print '(22f10.3)', cell0%velocity
-!   print '(21f10.3)', cell0%pressure
-  print '(20e10.3)', leftspeed
-  print '(20e10.3)', rightspeed
+!   mylogical = (cell0(1:N0-1)%depth==0.).AND.(cell0(2:N0)%depth==0.)
+!   ii = 1
+!   do while( mylogical(ii).eqv..FALSE. )
+!     ii = ii+1
+!   end do
+!   print *, ii
+!   print *, cell0(ii-1)%depth
+!   print *, cell0(ii)%depth
+!   print '(20e10.3)', cell0%depth
+!   print '(20f10.3)', cell0%velocity
+!   print '(20f10.3)', cell0%pressure
+!   print '(20e10.3)', leftspeed
+!   print '(20e10.3)', rightspeed
 !   print '(21f10.3)', leftvelocity
 !   print '(21f10.3)', suliciuvelocity
 !   print '(21f10.3)', rightvelocity
 !   print '(21f10.3)', suliciupressure
-  print '(20e10.3)', leftdepth
-  print '(20e10.3)', rightdepth
+!   print '(20e10.3)', leftdepth
+!   print '(20e10.3)', rightdepth
 !   print '(21f10.3)', leftparameter
 !   print '(21f10.3)', rightparameter
 !   print *, '---------DEBUG-------------'
