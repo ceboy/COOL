@@ -27,17 +27,14 @@ program sv
       use m_cell
       integer :: stencil
       type (t_cell), dimension(:) :: cell0 
-      character (len=20) :: mystring
     end subroutine printout
   end interface
   ! Initialization ----------------------------------------------------------------
   print *, 'Initialization'
-  ! print *, 'Number of equidistant points...?'
-  ! read *, Nx ! surcharge svini() ??
   call svini ! <<<<<<<<<<<<<<<<<<<<<<<< INITIALIZE THE (GLOBAL) VARIABLES OF m_data
   print *, 'The step size in space is ', dx
   print *, 'Post-processing every ', dt_clock
-  stencil = (Nx+2)/2 ! number of cells to be shown on the left and right boundaries <= (Nx+2)/2
+  stencil = 5 ! (Nx+2)/2 ! number of cells shown on left and right boundaries <= (Nx+2)/2
   allocate( cell1(Nx+2), fluxleft(3,Nx+1), fluxright(3,Nx+1) )
   ! Parameterization ---------------------------------------------------------------
   open(unit=0,file='dt.res',form='formatted',status='new')
@@ -47,7 +44,7 @@ program sv
   open(unit=4,file='P.res',form='formatted',status='new')
   open(unit=5,file='phi.res',form='formatted',status='new')
   ! Post-processing and boundary conditions applied to copy cell1 -------------------
-  ! cell1 = cell
+  cell1 = cell
   ! where( cell1%depth<=0. ) 
   !   cell1%depth=1e-16
   !   cell1%discharge=0.
@@ -55,7 +52,7 @@ program sv
   !   cell1%pressure=0.
   !   cell1%tracer=0.
   ! end where
-  cell1 = trunc(cell,myzeromachine) ! to handle vacuum in the approximate Riemann solver
+  !cell1 = trunc(cell,myzeromachine) ! to handle vacuum in Riemann solver
   cell1(1) = cell1(2) ! no-flux
   cell1(Nx+2) = cell1(Nx+1) ! no-flux
   call printout(stencil,cell1)
@@ -65,9 +62,10 @@ program sv
   write( 2, '('//mystring//'f6.2)') cell1(2:(Nx+1))%discharge
   write( 3, '('//mystring//'f6.2)') cell1(2:(Nx+1))%velocity
   write( 4, '('//mystring//'f6.2)') cell1(2:(Nx+1))%pressure
-  write( 5, '('//mystring//'f6.2)') cell1(2:(Nx+1))%tracer/cell1(2:(Nx+1))%depth
+  write( 5, '('//mystring//'f6.2)') cell1(2:(Nx+1))%tracer/ &
+    (cell1(2:(Nx+1))%depth*(1.+myzeromachine))
   t_clock = dt_clock ! next post-processing
-  ! Computations ----------------------------------------------------------------
+  ! Computations -----------------------------------------------------------------
   print *, 'Entering time loop'
   time_loop : do while((t<Tmax).AND.(nt<Ntmax))
     nt = nt+1 
@@ -76,11 +74,13 @@ program sv
     cell1(2:Nx+1)%depth = (fluxleft(1,1:Nx)-fluxright(1,2:Nx+1))/cell(2:Nx+1)%volume
     cell1(2:Nx+1)%discharge = (fluxleft(2,1:Nx)-fluxright(2,2:Nx+1))/cell(2:Nx+1)%volume
     cell1(2:Nx+1)%tracer = (fluxleft(3,1:Nx)-fluxright(3,2:Nx+1))/cell(2:Nx+1)%volume
-    ! Time-step ------------------------------------------------
+    ! Time-step ------------------------------------------------------------------
+!if(nt==270) exit
     dt = t_neighbour*CFL
     if (t_neighbour<dtmin) then
       dt = dtmin
       print *, 'dt too small'
+      exit
     end if
     mylogical = .FALSE.
     if ((t+dt>Tmax).OR.(t+dt>t_clock)) then
@@ -98,21 +98,37 @@ program sv
     cell(2:Nx+1)%depth = cell(2:Nx+1)%depth + dt*cell1(2:Nx+1)%depth
     cell(2:Nx+1)%discharge = cell(2:Nx+1)%discharge + dt*cell1(2:Nx+1)%discharge
     cell(2:Nx+1)%tracer = cell(2:Nx+1)%tracer + dt*cell1(2:Nx+1)%tracer
-    cell(2:Nx+1)%velocity = cell(2:Nx+1)%discharge/cell(2:Nx+1)%depth
+    !cell(2:Nx+1)%velocity = cell1(2:Nx+1)%discharge/cell1(2:Nx+1)%depth !! /0
+    if(minval(cell(2:Nx+1)%depth)<0.) then
+      print *, 'Negative depth!'
+      exit
+    end if
+    where( cell(2:Nx+1)%depth>0. )
+      cell(2:Nx+1)%velocity = cell(2:Nx+1)%discharge/cell(2:Nx+1)%depth
+    elsewhere
+      cell(2:Nx+1)%velocity = 0.
+    end where
     cell(2:Nx+1)%pressure = g*cell(2:Nx+1)%depth**2/2
     ! Post-processing and boundary conditions applied to copy cell1 --------------
-    cell1 = trunc(cell,myzeromachine) ! to handle vacuum in the approximate Riemann solver
+    cell1 = cell 
+    !cell1 = trunc(cell,myzeromachine) ! to handle vacuum in the approximate Riemann solver
+    ! where( cell1(2:Nx+1)%depth/=0. )
+    !   cell1(2:Nx+1)%velocity = cell1(2:Nx+1)%discharge/cell1(2:Nx+1)%depth
+    ! elsewhere
+    !   cell1(2:Nx+1)%velocity = cell1(2:Nx+1)%discharge/(cell1(2:Nx+1)%depth+myzeromachine)
+    ! end where
     cell1(1) = cell1(2) ! no-flux
     cell1(Nx+2) = cell1(Nx+1) ! no-flux
     if(mylogical) then
-      call printout(stencil,cell1)
+      call printout(stencil,trunc(cell1,myzeromachine))
       print '("* Saving data at ",f6.2," >= ",f6.2)', t, t_clock
       write(mystring,*) Nx
       write( 1, '('//mystring//'f6.2)') cell1(2:(Nx+1))%depth
       write( 2, '('//mystring//'f6.2)') cell1(2:(Nx+1))%discharge
       write( 3, '('//mystring//'f6.2)') cell1(2:(Nx+1))%velocity
       write( 4, '('//mystring//'f6.2)') cell1(2:(Nx+1))%pressure
-      write( 5, '('//mystring//'f6.2)') cell1(2:(Nx+1))%tracer/cell1(2:(Nx+1))%depth
+      write( 5, '('//mystring//'f6.2)') cell1(2:(Nx+1))%tracer/ &
+        (cell1(2:(Nx+1))%depth*(1.+myzeromachine))
       t_clock = t_clock + dt_clock
     end if
   end do time_loop 
@@ -149,11 +165,14 @@ subroutine riemann(fluxleft,fluxright,t_neighbour,cell0,g)
   double precision, dimension(:,:), intent(out) :: fluxleft, fluxright
   ! Suliciu relaxation solver: diagonal system with additional variables
   integer :: N0, Nface
+  double precision, dimension(:), allocatable :: leftspeed, rightspeed  
   double precision, dimension(:), allocatable :: leftparameter, rightparameter  
   double precision, dimension(:), allocatable :: leftdepth, rightdepth
   double precision, dimension(:), allocatable :: suliciuvelocity, suliciupressure
   double precision, dimension(:), allocatable :: leftvelocity, rightvelocity
-  logical, dimension(:), allocatable :: velocity_sign_error
+  logical, dimension(:), allocatable :: mylogical
+  integer :: ii = 0
+  double precision :: mymin = 0.
   !--------------------------------------------------------------------------
   ! interface
   !   subroutine suliciu_initialization( leftparameter, rightparameter, cell0 ) 
@@ -166,48 +185,118 @@ subroutine riemann(fluxleft,fluxright,t_neighbour,cell0,g)
   N0 = size(cell0)
   Nface = N0-1
   allocate( &
+    leftspeed(Nface), rightspeed(Nface), &
     leftparameter(Nface), rightparameter(Nface), &
     leftdepth(Nface), rightdepth(Nface), &
     suliciuvelocity(Nface), suliciupressure(Nface), &
     leftvelocity(Nface), rightvelocity(Nface), &
-    velocity_sign_error(Nface) &
+    mylogical(Nface) &
   )
-  !!! suliciu parameter initialization
-  leftparameter = sqrt(g*cell0(1:N0-1)%depth)*cell0(1:N0-1)%depth
-  rightparameter = sqrt(g*cell0(2:N0)%depth)*cell0(2:N0)%depth
-  !!! initialization satisfying subcharacteristic condition
-  call suliciu_initialization( leftparameter, rightparameter, cell0 ) 
-  !!! intermediate (suliciu) velocity computation (riemann invariant)
-  suliciuvelocity = ( leftparameter*cell0(1:N0-1)%velocity + rightparameter*cell0(2:N0)%velocity &
-    + cell0(1:N0-1)%pressure - cell0(2:N0)%pressure )/(rightparameter+leftparameter)
-  !!! intermediate (suliciu) pressure computation (riemann invariant)
-  suliciupressure = ( cell0(2:N0)%pressure*leftparameter + cell0(1:N0-1)%pressure*rightparameter &
-    + leftparameter*rightparameter*(cell0(1:N0-1)%velocity-cell0(2:N0)%velocity) )/(rightparameter+leftparameter)
-  !!! intermediate (suliciu) depths
-  leftdepth = 1./( 1./cell0(1:N0-1)%depth + (cell0(1:N0-1)%pressure-suliciupressure)/leftparameter**2 )
-  rightdepth = 1./( 1./cell0(2:N0)%depth + (cell0(2:N0)%pressure-suliciupressure)/rightparameter**2 )
-  !!! intermediate (suliciu) eigenvalue computation (contact discontinuity velocity)
-  !leftvelocity = cell0(1:N0-1)%velocity - leftparameter/cell0(1:N0-1)%depth
-  !rightvelocity = cell0(2:N0)%velocity + rightparameter/cell0(2:N0)%depth
-  leftvelocity = suliciuvelocity - leftparameter/leftdepth
-  rightvelocity = suliciuvelocity + rightparameter/rightdepth
-!   print *, '---------DEBUG-------------'
-!   velocity_sign_error = .FALSE.
+  leftspeed = sqrt(g*cell0(1:N0-1)%depth)
+  rightspeed = sqrt(g*cell0(2:N0)%depth)
+  call suliciu_initialization( leftspeed, rightspeed, cell0 ) 
+  leftvelocity = cell0(1:N0-1)%velocity - leftspeed
+  rightvelocity = cell0(2:N0)%velocity + rightspeed
+  !!! suliciu Lagrangian speeds initialization satisfying subcharacteristic condition
+  leftparameter = leftspeed*cell0(1:N0-1)%depth
+  rightparameter = rightspeed*cell0(2:N0)%depth
+  !where( (cell0(1:N0-1)%depth==0.).AND.(cell0(2:N0)%depth==0.) )
+    suliciuvelocity = 0.
+    suliciupressure = 0.
+    leftdepth = 0.
+    rightdepth = 0.
+  !end where
+!   mymin = 1e-16 !maxval(cell0%depth)
+!   do while( ii<N0 )
+!     ii = ii+1
+!     if( (cell0(ii)%depth<mymin).AND.(cell0(ii)%depth>0.) ) mymin = cell0(ii)%depth
+!   end do
+!   print *, mymin
+  where( (cell0(1:N0-1)%depth/=0.).AND.(cell0(2:N0)%depth==0.) )
+    suliciuvelocity = cell0(1:N0-1)%velocity + cell0(1:N0-1)%pressure/leftparameter
+    !suliciupressure = 0.
+!   leftdepth = cell0(1:N0-1)%depth/( 1. + cell0(1:N0-1)%depth*cell0(1:N0-1)%pressure/(leftparameter**2) )
+    leftdepth = cell0(1:N0-1)%depth/( 1. + cell0(1:N0-1)%pressure/(leftspeed*leftparameter) )
+    !rightdepth = 0.
+!    leftdepth = leftdepth + mymin
+  end where
+  where( (cell0(1:N0-1)%depth==0.).AND.(cell0(2:N0)%depth/=0.) )
+    suliciuvelocity = cell0(2:N0)%velocity - cell0(2:N0)%pressure/rightparameter
+    !suliciupressure = 0.
+    !leftdepth = 0.
+!   rightdepth = cell0(2:N0)%depth/( 1. + cell0(2:N0)%depth*cell0(2:N0)%pressure/(rightparameter**2) )
+    rightdepth = cell0(2:N0)%depth/( 1. + cell0(2:N0)%pressure/(rightspeed*rightparameter) )
+!    rightdepth = rightdepth + mymin
+  end where
+  where( (cell0(1:N0-1)%depth/=0.).AND.(cell0(2:N0)%depth/=0.) )
+    suliciuvelocity = ( leftparameter*cell0(1:N0-1)%velocity + rightparameter*cell0(2:N0)%velocity &
+      + cell0(1:N0-1)%pressure - cell0(2:N0)%pressure )/(rightparameter+leftparameter)
+    suliciupressure = ( cell0(2:N0)%pressure*leftparameter + cell0(1:N0-1)%pressure*rightparameter &
+      + leftparameter*rightparameter*(cell0(1:N0-1)%velocity-cell0(2:N0)%velocity) )/(rightparameter+leftparameter)
+!    end where
+!    where( (cell0(1:N0-1)%depth/=0.).AND.(cell0(2:N0)%depth/=0.) )
+    leftdepth = cell0(1:N0-1)%depth / &
+    ( 1. - & ! not a good idea to replace leftspeed=leftparameter/cell0(1:N0-1)%depth below !!!!!!!
+      ( &
+!         ( cell0(2:N0)%pressure - cell0(1:N0-1)%pressure &
+!            + rightparameter*(cell0(1:N0-1)%velocity-cell0(2:N0)%velocity) ) / &
+!         ( leftspeed*(rightparameter+leftparameter) ) &
+        ( suliciupressure - cell0(1:N0-1)%pressure ) / ( leftspeed*leftparameter ) &
+      ) &
+    )
+    rightdepth = cell0(2:N0)%depth / &
+    ( 1. - &! not a good idea to replace rightspeed=rightparameter/cell0(2:N06)%depth below !!!!!!!
+      ( &
+!         ( cell0(1:N0-1)%pressure - cell0(2:N0)%pressure &
+!             + leftparameter*(cell0(1:N0-1)%velocity-cell0(2:N0)%velocity) ) / &
+!         ( rightspeed*(rightparameter+leftparameter) ) &
+        ( suliciupressure - cell0(2:N0)%pressure ) / ( rightspeed*rightparameter ) &
+      ) &
+    )
+!     leftdepth = 1./( 1./cell0(1:N0-1)%depth + (cell0(1:N0-1)%pressure-suliciupressure)/(leftparameter**2) )
+!     leftdepth = 1./( 1./cell0(1:N0-1)%depth + &
+!       ( rightparameter*(cell0(2:N0)%velocity-cell0(1:N0-1)%velocity) &
+!         + cell0(1:N0-1)%pressure - cell0(2:N0)%pressure ) / &
+!       ( leftparameter*(rightparameter+leftparameter) ) )
+!     rightdepth = 1./( 1./cell0(2:N0)%depth + (cell0(2:N0)%pressure-suliciupressure)/(rightparameter**2) )
+!     rightdepth = 1./( 1./cell0(2:N0)%depth + &
+!       ( leftparameter*(cell0(2:N0)%velocity-cell0(1:N0-1)%velocity) &
+!         + cell0(2:N0)%pressure - cell0(1:N0-1)%pressure ) / &
+!       ( rightparameter*(rightparameter+leftparameter) ) )
+  end where
+  print *, '---------DEBUG-------------'
+!   print *, N0
+!   mylogical = .FALSE.
 !   where( suliciuvelocity>rightvelocity )
-!     velocity_sign_error = .TRUE.
+!     mylogical = .TRUE.
 !   end where
 !   where( suliciuvelocity<leftvelocity )
-!     velocity_sign_error = .TRUE.
+!     mylogical = .TRUE.
 !   end where
-!   print '(21f8.3)', leftvelocity
-!   print '(21f8.3)', suliciuvelocity
-!   print '(21f8.3)', rightvelocity
-!   print '(21f8.3)', suliciupressure
-!   print '(21f8.3)', leftdepth
-!   print '(21f8.3)', rightdepth
+  mylogical = (cell0(1:N0-1)%depth==0.).AND.(cell0(2:N0)%depth==0.)
+  ii = 1
+  do while( mylogical(ii).eqv..FALSE. )
+    ii = ii+1
+  end do
+  print *, ii
+  print *, cell0(ii-1)%depth
+  print *, cell0(ii)%depth
+  print '(20e10.3)', cell0%depth
+!   print '(22f10.3)', cell0%velocity
+!   print '(21f10.3)', cell0%pressure
+  print '(20e10.3)', leftspeed
+  print '(20e10.3)', rightspeed
+!   print '(21f10.3)', leftvelocity
+!   print '(21f10.3)', suliciuvelocity
+!   print '(21f10.3)', rightvelocity
+!   print '(21f10.3)', suliciupressure
+  print '(20e10.3)', leftdepth
+  print '(20e10.3)', rightdepth
+!   print '(21f10.3)', leftparameter
+!   print '(21f10.3)', rightparameter
 !   print *, '---------DEBUG-------------'
   !!! flux computation
-  where( (suliciuvelocity>=0.).AND.( leftvelocity>=0) )
+  where( (suliciuvelocity>=0.).AND.(leftvelocity>=0.) )
     fluxleft(1,:) = cell0(1:N0-1)%depth*cell0(1:N0-1)%velocity
     fluxleft(2,:) = cell0(1:N0-1)%depth*cell0(1:N0-1)%velocity**2 + cell0(1:N0-1)%pressure
     fluxleft(3,:) = cell0(1:N0-1)%tracer*cell0(1:N0-1)%velocity
@@ -215,7 +304,7 @@ subroutine riemann(fluxleft,fluxright,t_neighbour,cell0,g)
     fluxright(2,:) = fluxleft(2,:)
     fluxright(3,:) = fluxleft(3,:)
   end where
-  where( (suliciuvelocity>=0.).AND.( leftvelocity<0) )
+  where( (suliciuvelocity>=0.).AND.(leftvelocity<0.) )
     fluxleft(1,:) = leftdepth*suliciuvelocity
     fluxleft(2,:) = leftdepth*suliciuvelocity**2 + suliciupressure
     fluxleft(3,:) = cell0(1:N0-1)%tracer*suliciuvelocity
@@ -223,7 +312,7 @@ subroutine riemann(fluxleft,fluxright,t_neighbour,cell0,g)
     fluxright(2,:) = fluxleft(2,:)
     fluxright(3,:) = fluxleft(3,:)
   end where
-  where( (suliciuvelocity<0.).AND.( rightvelocity>=0) )
+  where( (suliciuvelocity<0.).AND.(rightvelocity>=0.) )
     fluxleft(1,:) = rightdepth*suliciuvelocity
     fluxleft(2,:) = rightdepth*suliciuvelocity**2 + suliciupressure
     fluxleft(3,:) = cell0(2:N0)%tracer*suliciuvelocity
@@ -231,7 +320,7 @@ subroutine riemann(fluxleft,fluxright,t_neighbour,cell0,g)
     fluxright(2,:) = fluxleft(2,:)
     fluxright(3,:) = fluxleft(3,:)
   end where
-  where( (suliciuvelocity<0.).AND.( rightvelocity<0) )
+  where( (suliciuvelocity<0.).AND.(rightvelocity<0.) )
     fluxleft(1,:) = cell0(2:N0)%depth*cell0(2:N0)%velocity
     fluxleft(2,:) = cell0(2:N0)%depth*cell0(2:N0)%velocity**2 + cell0(2:N0)%pressure 
     fluxleft(3,:) = cell0(2:N0)%tracer*cell0(2:N0)%velocity
@@ -239,6 +328,11 @@ subroutine riemann(fluxleft,fluxright,t_neighbour,cell0,g)
     fluxright(2,:) = fluxleft(2,:)
     fluxright(3,:) = fluxleft(3,:)
   end where
+!   print *, '---------DEBUG-------------'
+!   print '(21f10.3)', fluxleft(1,:)
+!   print '(21f10.3)', fluxleft(2,:)
+!   print '(21f10.3)', fluxleft(3,:)
+!   print *, '---------DEBUG-------------'
   where( rightvelocity<0 ) rightvelocity = -rightvelocity
   where( leftvelocity<0 ) leftvelocity = -leftvelocity
   t_neighbour = minval( (/cell0(2:N0)%volume/rightvelocity,cell0(1:N0-1)%volume/leftvelocity/) )
@@ -251,29 +345,33 @@ subroutine riemann(fluxleft,fluxright,t_neighbour,cell0,g)
     double precision, dimension(:), intent(inout) :: leftparameter, rightparameter  
     type(t_cell), dimension(:), intent(in) :: cell0
     integer :: N0, Nface
-    double precision, dimension(:), allocatable :: temp1, temp2, temp3
+    double precision, dimension(:), allocatable :: temp0, temp1, temp2, temp3
     double precision :: alpha
     N0 = size(cell0)
     Nface = N0-1
-    allocate( temp1(Nface), temp2(Nface), temp3(Nface) )
-    alpha = 2. !1.5
+    allocate( temp0(Nface), temp1(Nface), temp2(Nface), temp3(Nface) )
+    temp0 = rightparameter*cell0(2:N0)%depth + leftparameter*cell0(1:N0-1)%depth
     temp1 = cell0(2:N0)%pressure-cell0(1:N0-1)%pressure ! Pr-Pl
-    where(temp1>=0.)
-      temp2 = temp1/(rightparameter+leftparameter)
-      temp3 = 0.
-    elsewhere
+    where(temp0==0.)
       temp2 = 0.
-      temp3 = -temp1/(rightparameter+leftparameter)
+      temp3 = 0.
+    end where
+    where((temp1>=0.).AND.(temp0/=0.))
+      temp2 = temp1/temp0
+      temp3 = 0.
+    end where
+    where((temp1<0.).AND.(temp0/=0.))
+      temp2 = 0.
+      temp3 = -temp1/temp0
     end where
     temp1 = cell0(1:N0-1)%velocity-cell0(2:N0)%velocity ! u_l-u_r
     where(temp1<0.) temp1=0.
-    temp2 = ( temp2 + temp1 )*cell0(1:N0-1)%depth/leftparameter
-    temp3 = ( temp3 + temp1 )*cell0(2:N0)%depth/rightparameter
+    temp2 = ( temp2 + temp1 )
+    temp3 = ( temp3 + temp1 )
     ! --
-    !leftparameter = leftparameter * ( .5 + temp2 + sqrt( .25 + temp2 ) )
-    !rightparameter = rightparameter * ( .5 + temp3 + sqrt( .25 + temp3 ) )
-    leftparameter = leftparameter * ( 1. + alpha*temp2 )
-    rightparameter = rightparameter * ( 1. + alpha*temp3 )
+    alpha = 2. !1.5
+    leftparameter = leftparameter + alpha*temp2
+    rightparameter = rightparameter + alpha*temp3
   end subroutine suliciu_initialization
 end subroutine riemann
 
@@ -291,12 +389,12 @@ subroutine printout(stencil,cell)
   print '('//mystring//'f6.2,"   ...",'//mystring//'f6.2)', &
     (/ (cell(ix)%depth, ix=1,stencil) , &
        (cell(ix)%depth, ix=Nx+2-stencil+1,Nx+2) /) 
-  print '('//mystring//'f6.2,"   ...",'//mystring//'f6.2)', &
-    (/ (cell(ix)%tracer, ix=1,stencil) , &
-        (cell(ix)%tracer, ix=Nx+2-stencil+1,Nx+2) /) 
-  print '('//mystring//'f6.2,"   ...",'//mystring//'f6.2)', &
-    (/ (cell(ix)%tracer/cell(ix)%depth, ix=1,stencil) , &
-       (cell(ix)%tracer/cell(ix)%depth, ix=Nx+2-stencil+1,Nx+2) /) 
+!   print '('//mystring//'f6.2,"   ...",'//mystring//'f6.2)', &
+!     (/ (cell(ix)%tracer, ix=1,stencil) , &
+!         (cell(ix)%tracer, ix=Nx+2-stencil+1,Nx+2) /) 
+!   print '('//mystring//'f6.2,"   ...",'//mystring//'f6.2)', &
+!     (/ (cell(ix)%tracer/cell(ix)%depth, ix=1,stencil) , &
+!        (cell(ix)%tracer/cell(ix)%depth, ix=Nx+2-stencil+1,Nx+2) /) 
 end subroutine printout
 
 ! subroutine writeout(stencil)

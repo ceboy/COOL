@@ -8,11 +8,11 @@ subroutine svini
   select case(testcase)
   !--------------------------------------------------------------------------
   case(1)
-    Tmax = .5d0
-    dtmin = 1.d-4
+    Tmax = .1d0
+    dtmin = 1.d-6
     Ntmax = 100000
     allocate( thist(3,Ntmax) )
-    Ntmax_clock = 51 !501
+    Ntmax_clock = 11 !501
     dt_clock = Tmax/(Ntmax_clock-1)
     !dt_clock = 1.d-1 ! 
     !Ntmax_clock = (Tmax/dt_clock)+1 
@@ -40,10 +40,10 @@ subroutine svini
       endif
     end do
     do ix = 1,Nx+2
-      cell(ix)%discharge = 0d0
+      cell(ix)%discharge = 0.d0
     end do
     do ix = 1,Nx+2
-      cell(ix)%velocity = 0d0
+      cell(ix)%velocity = 0.d0
     end do
     do ix = 1,Nx+2
       cell(ix)%pressure = g*cell(ix)%depth**2
