@@ -1,11 +1,14 @@
 module m_data
   use m_cell
   implicit none
-  integer :: testcase = 2
+  integer :: testcase = 7
   !--------------------------------------------------------------------------
+  double precision, parameter :: Pi = 3.1415927
   double precision, parameter :: g = 9.81d0 ! gravity constant
   double precision :: k = 0d0  ! friction parameter
+  double precision :: kwave = 2.5  ! wave number
   !--------------------------------------------------------------------------
+  logical :: viscoelastic ! boolean for UCM coupling
   integer :: I0 ! time-splitting
   integer :: I1 ! three-point numerical flux (order 1)
   integer :: I2 ! flux limiter (order 2 reconstruction) ; not used if 0

@@ -4,6 +4,7 @@ include $(SVPATH)/Mdefs.mk
 EXEC = sv.exe
 
 OBJ1 = m_cell.f90 m_data.f90 svini.f90 sv.f90
+OBJ2 = conv.py plot.py Mdefs.mk Makefile
 
 all: $(EXEC)
 
@@ -20,3 +21,7 @@ clean:
 
 cleanall: clean
 	$(RM) *.mod $(EXEC) *~ 
+
+cleanallfiles: cleanall
+	$(RM) $(OBJ1) $(OBJ2)
+

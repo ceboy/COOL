@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 mystring = 'u'
 mylist1 = [1, 2, 4, 8]
-myfiles = map(lambda x:'Nx'+str(x)+'00/'+mystring+'.res',mylist1)
+myfiles = map(lambda x:str(x)+'00/'+mystring+'.res',mylist1)
 #myfiles = map(lambda x:'Nx'+str(x)+'00/Q.res',mylist1)
 table = []
 nbfiles = 0
