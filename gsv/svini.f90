@@ -331,11 +331,9 @@ subroutine svini
       cell(ix)%center = cell(ix-1)%center + (cell(ix-1)%volume+cell(ix)%volume)/2.
     end do
     do ix = 1,Nx+2
-      if ((cell(ix)%center<1.).AND.(cell(ix)%center>-1.)) then
-	cell(ix)%depth = 1.d0 + sin(kwave*Pi*(cell(ix)%center+1.))
-      else if (cell(ix)%center>1.) then
-	cell(ix)%depth = 1.d0
-      else if (cell(ix)%center<-1.) then
+      if (cell(ix)%center<0.) then
+	cell(ix)%depth = 3.d0 
+      else
 	cell(ix)%depth = 1.d0
       endif
     end do
@@ -348,13 +346,7 @@ subroutine svini
     do ix = 1,Nx+2
       cell(ix)%pressure = g*cell(ix)%depth**2
     end do 
-    do ix = 1,Nx+2
-      if (cell(ix)%center<0.) then
-	cell(ix)%depth = 3.d0 
-      else
-	cell(ix)%depth = 1.d0
-      endif
-    end do
+    viscoelastic = .TRUE.
     do ix = 1,Nx+2
       cell(ix)%sigmaxx = 1.d0
     end do
