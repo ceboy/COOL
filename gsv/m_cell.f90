@@ -5,6 +5,7 @@ module m_cell
     double precision depth
     double precision discharge, velocity
     double precision tracer, sigmaxx, sigmazz
+    double precision htracer, hsigmaxx, hsigmazz
     double precision pressure
   end type t_cell
   ! creer un operateur << ?

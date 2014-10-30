@@ -8,7 +8,7 @@ program sv
   integer :: nt = 0            ! time iteration number
   double precision :: t = 0.   ! current time
   integer :: ix                ! spatial DOF (cells) iterator
-  type (t_cell), dimension(:), allocatable :: cell1 ! buffer cell
+  type (t_cell), dimension(:), allocatable :: interf ! buffer cell
   double precision, dimension(:,:), allocatable :: fluxleft, fluxright
   double precision :: t_neighbour ! maximal time allowed by a CFL=1
   character (len=20) :: mystring ! buffer string
@@ -41,11 +41,14 @@ program sv
   print '("Zero machine = ",e12.6)', myzeromachine
   print *, 'Initialization'
   call svini ! <<<<<<<<<<<<<<<<<<<<<<<< INITIALIZE THE (GLOBAL) VARIABLES OF m_data
+  cell%htracer = cell%tracer*cell%depth
+  cell%hsigmaxx = cell%sigmaxx*cell%depth
+  cell%hsigmazz = cell%sigmazz*cell%depth
   print *, 'The step size in space is ', dx
   print *, 'Post-processing every ', dt_clock
   ! Parameterization ---------------------------------------------------------------
   Neq = 5
-  allocate( cell1(Nx+2), fluxleft(Neq,Nx+1), fluxright(Neq,Nx+1) )
+  allocate( interf(Nx+2), fluxleft(Neq,Nx+1), fluxright(Neq,Nx+1) )
   open(unit=0,file='dt.res',form='formatted',status='new')
   open(unit=1,file='h.res',form='formatted',status='new')
   open(unit=2,file='Q.res',form='formatted',status='new')
@@ -55,27 +58,27 @@ program sv
   open(unit=11,file='sxx.res',form='formatted',status='new')
   open(unit=12,file='szz.res',form='formatted',status='new')
   ! >>> ABOVE: to be improved (writeout dependency on unit numbers)
-  ! Post-processing and boundary conditions applied to copy cell1 -------------------
-  cell1 = cell
-  cell1(1) = cell1(2) ! no-flux
-  cell1(Nx+2) = cell1(Nx+1) ! no-flux
+  ! Post-processing and boundary conditions applied to copy interf -------------------
+  interf = cell
+  interf(1) = interf(2) ! no-flux
+  interf(Nx+2) = interf(Nx+1) ! no-flux
   stencil = 5 ! (Nx+2)/2 ! number of cells shown on left and right boundaries <= (Nx+2)/2
-  call printout(stencil,cell1)
-  print '("* Saving data at ",f8.3," >= ",f8.3)', t, t_clock
-  call writeout(cell1)
+  call printout(stencil,interf)
+  print '("* Saving data at ",f10.5," >= ",f10.5)', t, t_clock
+  call writeout(interf)
   t_clock = dt_clock ! next post-processing
   ! Computations -----------------------------------------------------------------
   print *, 'Entering time loop'
   time_loop : do while((t<Tmax).AND.(nt<Ntmax))
     nt = nt+1 
     ! Flux obtained from homogeneous (approximate) Riemann problems --------------
-    call riemann(fluxleft,fluxright,t_neighbour,cell1,g) !! Suliciu : choice ?
-    cell1(2:Nx+1)%depth = (fluxleft(1,1:Nx)-fluxright(1,2:Nx+1))/cell(2:Nx+1)%volume
-    cell1(2:Nx+1)%discharge = (fluxleft(2,1:Nx)-fluxright(2,2:Nx+1))/cell(2:Nx+1)%volume
-    cell1(2:Nx+1)%tracer = (fluxleft(3,1:Nx)-fluxright(3,2:Nx+1))/cell(2:Nx+1)%volume
-    cell1(2:Nx+1)%sigmaxx = (fluxleft(4,1:Nx)-fluxright(4,2:Nx+1))/cell(2:Nx+1)%volume
-    cell1(2:Nx+1)%sigmazz = (fluxleft(5,1:Nx)-fluxright(5,2:Nx+1))/cell(2:Nx+1)%volume
-    cell1 = trunc(cell1) ! to handle vacuum in fluxes: set to zero non-sensible values ?
+    call riemann(fluxleft,fluxright,t_neighbour,interf,g) !! Suliciu : choice ?
+    interf(2:Nx+1)%depth = (fluxleft(1,1:Nx)-fluxright(1,2:Nx+1))/cell(2:Nx+1)%volume
+    interf(2:Nx+1)%discharge = (fluxleft(2,1:Nx)-fluxright(2,2:Nx+1))/cell(2:Nx+1)%volume
+    interf(2:Nx+1)%htracer = (fluxleft(3,1:Nx)-fluxright(3,2:Nx+1))/cell(2:Nx+1)%volume
+    interf(2:Nx+1)%hsigmaxx = (fluxleft(4,1:Nx)-fluxright(4,2:Nx+1))/cell(2:Nx+1)%volume
+    interf(2:Nx+1)%hsigmazz = (fluxleft(5,1:Nx)-fluxright(5,2:Nx+1))/cell(2:Nx+1)%volume
+    !interf = trunc(interf) ! to handle vacuum in fluxes: set to zero non-sensible values ?
     ! >>>> ABOVE: one should better create a new type "flux" with same attributes as cell !
     ! Time-step ------------------------------------------------------------------
     dt = t_neighbour*CFL
@@ -97,81 +100,67 @@ program sv
     write( 0, '(3e15.6)') thist(1:3,nt)
     t = t+dt
     ! First-order time-splitting ------------------------------------------------
-    !! Compute extensive integrals of intensive variables
-    cell(2:Nx+1)%tracer = cell(2:Nx+1)%tracer*cell(2:Nx+1)%depth ! h*tracer
-    cell(2:Nx+1)%sigmaxx = cell(2:Nx+1)%sigmaxx*cell(2:Nx+1)%depth ! h*sigmaxx
-    cell(2:Nx+1)%sigmazz = cell(2:Nx+1)%sigmazz*cell(2:Nx+1)%depth ! h*sigmazz
-    !! Update volume and all (extensive) variables -- kinematic
-    cell(2:Nx+1)%depth = cell(2:Nx+1)%depth + dt*cell1(2:Nx+1)%depth
+    cell(2:Nx+1)%depth = cell(2:Nx+1)%depth + dt*interf(2:Nx+1)%depth
     if(minval(cell(2:Nx+1)%depth)<0.) then
       print *, 'Negative depth!'
       exit
     end if
-    cell(2:Nx+1)%pressure = g*cell(2:Nx+1)%depth**2/2 ! & 
-    !    + elasticmodulus*(cell(2:Nx+1)%sigmazz-cell(2:Nx+1)%sigmaxx)
-    cell(2:Nx+1)%discharge = cell(2:Nx+1)%discharge + dt*cell1(2:Nx+1)%discharge
-    cell(2:Nx+1)%tracer = cell(2:Nx+1)%tracer + dt*cell1(2:Nx+1)%tracer ! h*tracer
-    cell(2:Nx+1)%sigmaxx = cell(2:Nx+1)%sigmaxx + dt*cell1(2:Nx+1)%sigmaxx ! h*sigmaxx
-    cell(2:Nx+1)%sigmazz = cell(2:Nx+1)%sigmazz + dt*cell1(2:Nx+1)%sigmazz ! h*sigmazz
-    !! Restore (cell-averaged) intensive variables
-    where( (cell(2:Nx+1)%depth>0.) ) ! .AND.(cell(2:Nx+1)%discharge>0.)
+    cell(2:Nx+1)%discharge = cell(2:Nx+1)%discharge + dt*interf(2:Nx+1)%discharge
+    cell(2:Nx+1)%htracer = cell(2:Nx+1)%htracer + dt*interf(2:Nx+1)%htracer
+    cell(2:Nx+1)%hsigmaxx = cell(2:Nx+1)%hsigmaxx + dt*interf(2:Nx+1)%hsigmaxx
+    cell(2:Nx+1)%hsigmazz = cell(2:Nx+1)%hsigmazz + dt*interf(2:Nx+1)%hsigmazz
+    where( (cell(2:Nx+1)%depth>0.) ) ! maxval(cell(2:Nx+1)%depth)*myzeromachine ??
       cell(2:Nx+1)%velocity = cell(2:Nx+1)%discharge/cell(2:Nx+1)%depth
-      cell(2:Nx+1)%tracer = cell(2:Nx+1)%tracer/cell(2:Nx+1)%depth
-      cell(2:Nx+1)%sigmaxx = cell(2:Nx+1)%sigmaxx/cell(2:Nx+1)%depth
-      cell(2:Nx+1)%sigmazz = cell(2:Nx+1)%sigmazz/cell(2:Nx+1)%depth
+      cell(2:Nx+1)%tracer = cell(2:Nx+1)%htracer/cell(2:Nx+1)%depth
+      cell(2:Nx+1)%sigmaxx = cell(2:Nx+1)%hsigmaxx/cell(2:Nx+1)%depth
+      cell(2:Nx+1)%sigmazz = cell(2:Nx+1)%hsigmazz/cell(2:Nx+1)%depth
+      cell(2:Nx+1)%pressure = g*cell(2:Nx+1)%depth**2/2 ! & 
+      !  + elasticmodulus*(cell(2:Nx+1)%sigmazz-cell(2:Nx+1)%sigmaxx)
     elsewhere
       cell(2:Nx+1)%velocity = 0.
       cell(2:Nx+1)%tracer = 0.
       cell(2:Nx+1)%sigmaxx = 0.
       cell(2:Nx+1)%sigmazz = 0.
+      cell(2:Nx+1)%pressure = 0.
     end where
-    ! Post-processing and boundary conditions applied to copy cell1 --------------
-    cell1 = cell 
-    ! trunc(cell) !,myzeromachine) ! to repair vacuum from approximate Riemann solver ??
-    cell1(1) = cell1(2) ! no-flux
-    cell1(Nx+2) = cell1(Nx+1) ! no-flux
+    ! Post-processing and boundary conditions applied to copy interf --------------
+    interf = cell 
+    interf(1) = interf(2) ! no-flux
+    interf(Nx+2) = interf(Nx+1) ! no-flux
     if(mylogical) then
-      call printout(stencil,cell1) ! printout(stencil,trunc(cell1))
-      print '("* Saving data at ",f8.3," >= ",f8.3)', t, t_clock
-      call writeout(cell1)
+      call printout(stencil,interf) ! printout(stencil,trunc(interf))
+      print '("* Saving data at ",f10.5," >= ",f10.5)', t, t_clock
+      call writeout(interf)
       t_clock = t_clock + dt_clock
     end if
   end do time_loop 
   ! ------------------------------------------------------------
   contains
   ! ------------------------------------------------------------
-  function trunc(cell)!,zeromachine)
+  function trunc(cell)
     use m_cell
     use m_zeromachine
     implicit none
     type (t_cell), dimension(:) :: cell
     type (t_cell), dimension(:), allocatable :: trunc
     double precision :: ref
-    !double precision :: zeromachine
     allocate( trunc(size(cell)) )
     trunc = cell
-    ! where( cell%depth<=0. ) ! to handle vacuum in the approximate Riemann solver
-    !   trunc%depth=myzeromachine!1e-16
-    !   trunc%discharge=0.
-    !   trunc%velocity=0.
-    !   trunc%pressure=0.
-    !   trunc%tracer=0.
-    ! end where
     ref = max(maxval(cell%depth),-minval(cell%depth))
     where( (cell%depth<=myzeromachine*ref).AND.(cell%depth>0.) ) trunc%depth=0.
     where( (cell%depth>=-myzeromachine*ref).AND.(cell%depth<0.) ) trunc%depth=0.
     ref = max(maxval(cell%discharge),-minval(cell%discharge))
     where( (cell%discharge<=myzeromachine*ref).AND.(cell%discharge>0.) ) trunc%discharge=0.
     where( (cell%discharge>=-myzeromachine*ref).AND.(cell%discharge<0.) ) trunc%discharge=0.
-    ref = max(maxval(cell%tracer),-minval(cell%tracer))
-    where( (cell%tracer<=myzeromachine*ref).AND.(cell%tracer>0.) ) trunc%tracer=0.
-    where( (cell%tracer>=-myzeromachine*ref).AND.(cell%tracer<0.) ) trunc%tracer=0.
-    ref = max(maxval(cell%sigmaxx),-minval(cell%sigmaxx))
-    where( (cell%sigmaxx<=myzeromachine*ref).AND.(cell%sigmaxx>0.) ) trunc%sigmaxx=0.
-    where( (cell%sigmaxx>=-myzeromachine*ref).AND.(cell%sigmaxx<0.) ) trunc%sigmaxx=0.
-    ref = max(maxval(cell%sigmazz),-minval(cell%sigmazz))
-    where( (cell%sigmazz<=myzeromachine*ref).AND.(cell%sigmazz>0.) ) trunc%sigmazz=0.
-    where( (cell%sigmazz>=-myzeromachine*ref).AND.(cell%sigmazz<0.) ) trunc%sigmazz=0.
+    ref = max(maxval(cell%htracer),-minval(cell%htracer))
+    where( (cell%htracer<=myzeromachine*ref).AND.(cell%htracer>0.) ) trunc%htracer=0.
+    where( (cell%htracer>=-myzeromachine*ref).AND.(cell%htracer<0.) ) trunc%htracer=0.
+    ref = max(maxval(cell%hsigmaxx),-minval(cell%hsigmaxx))
+    where( (cell%hsigmaxx<=myzeromachine*ref).AND.(cell%hsigmaxx>0.) ) trunc%hsigmaxx=0.
+    where( (cell%hsigmaxx>=-myzeromachine*ref).AND.(cell%hsigmaxx<0.) ) trunc%hsigmaxx=0.
+    ref = max(maxval(cell%hsigmazz),-minval(cell%hsigmazz))
+    where( (cell%hsigmazz<=myzeromachine*ref).AND.(cell%hsigmazz>0.) ) trunc%hsigmazz=0.
+    where( (cell%hsigmazz>=-myzeromachine*ref).AND.(cell%hsigmazz<0.) ) trunc%hsigmazz=0.
     return
   end function
 end program sv
@@ -194,6 +183,8 @@ subroutine riemann(fluxleft,fluxright,t_neighbour,cell0,g)
   double precision, dimension(:), allocatable :: leftvelocity, rightvelocity
   double precision, dimension(:), allocatable :: leftsigmaxx, rightsigmaxx
   double precision, dimension(:), allocatable :: leftsigmazz, rightsigmazz
+  double precision, dimension(:), allocatable :: lefthsigmaxx, righthsigmaxx
+  double precision, dimension(:), allocatable :: lefthsigmazz, righthsigmazz
   logical, dimension(:), allocatable :: mylogical
   integer :: ii = 0
   !--------------------------------------------------------------------------
@@ -251,18 +242,32 @@ subroutine riemann(fluxleft,fluxright,t_neighbour,cell0,g)
     rightdepth = cell0(2:N0)%depth / &
     ( 1. - (( suliciupressure - cell0(2:N0)%pressure ) / ( rightspeed*rightparameter )) )
   end where
-  allocate( leftsigmaxx(Nface), rightsigmaxx(Nface), leftsigmazz(Nface), rightsigmazz(Nface) )
-  leftsigmaxx = 0.
-  leftsigmazz = 0.
-  rightsigmaxx = 0.
-  rightsigmazz = 0.
+!   allocate( leftsigmaxx(Nface), rightsigmaxx(Nface), leftsigmazz(Nface), rightsigmazz(Nface) )
+!   leftsigmaxx = 0.
+!   leftsigmazz = 0.
+!   rightsigmaxx = 0.
+!   rightsigmazz = 0.
+!   where( leftdepth/=0. ) ! recall cell0(1:N0-1)%depth==0.=>leftdepth==0.
+!     leftsigmaxx = cell0(1:N0-1)%sigmaxx*(cell0(1:N0-1)%depth/leftdepth)**2
+!     leftsigmazz = cell0(1:N0-1)%sigmazz*(leftdepth/cell0(1:N0-1)%depth)**2
+!   end where
+!   where( rightdepth/=0. ) ! recall cell0(2:N0)%depth==0.=>rightdepth==0.
+!     rightsigmaxx = cell0(2:N0)%sigmaxx*(cell0(2:N0)%depth/rightdepth)**2
+!     rightsigmazz = cell0(2:N0)%sigmazz*(rightdepth/cell0(2:N0)%depth)**2
+!   end where
+  allocate( lefthsigmaxx(Nface), righthsigmaxx(Nface), lefthsigmazz(Nface), righthsigmazz(Nface) )
+  lefthsigmaxx = 0.
+  lefthsigmazz = 0.
+  righthsigmaxx = 0.
+  righthsigmazz = 0.
   where( leftdepth/=0. ) ! recall cell0(1:N0-1)%depth==0.=>leftdepth==0.
-    leftsigmaxx = cell0(1:N0-1)%sigmaxx*(cell0(1:N0-1)%depth/leftdepth)**2
-    leftsigmazz = cell0(1:N0-1)%sigmazz*(leftdepth/cell0(1:N0-1)%depth)**2
+    !lefthsigmaxx = cell0(1:N0-1)%hsigmaxx*(cell0(1:N0-1)%depth/leftdepth)
+    lefthsigmaxx = cell0(1:N0-1)%hsigmaxx*(cell0(1:N0-1)%depth/leftdepth)
+    lefthsigmazz = cell0(1:N0-1)%hsigmazz*(leftdepth/cell0(1:N0-1)%depth)**3
   end where
   where( rightdepth/=0. ) ! recall cell0(2:N0)%depth==0.=>rightdepth==0.
-    rightsigmaxx = cell0(2:N0)%sigmaxx*(cell0(2:N0)%depth/rightdepth)**2
-    rightsigmazz = cell0(2:N0)%sigmazz*(rightdepth/cell0(2:N0)%depth)**2
+    righthsigmaxx = cell0(2:N0)%hsigmaxx*(cell0(2:N0)%depth/rightdepth)
+    righthsigmazz = cell0(2:N0)%hsigmazz*(rightdepth/cell0(2:N0)%depth)**3
   end where
 !   print *, '---------DEBUG-------------'
 !   print *, N0
@@ -299,74 +304,116 @@ subroutine riemann(fluxleft,fluxright,t_neighbour,cell0,g)
   where( (suliciuvelocity>=0.).AND.(leftvelocity>=0.) )
     fluxleft(1,:) = cell0(1:N0-1)%depth*cell0(1:N0-1)%velocity
     fluxleft(2,:) = cell0(1:N0-1)%depth*cell0(1:N0-1)%velocity**2 + cell0(1:N0-1)%pressure
-    fluxleft(3,:) = cell0(1:N0-1)%tracer*cell0(1:N0-1)%discharge
-    fluxleft(4,:) = cell0(1:N0-1)%sigmaxx*cell0(1:N0-1)%discharge
-    fluxleft(5,:) = cell0(1:N0-1)%sigmazz*cell0(1:N0-1)%discharge
+!     fluxleft(3,:) = cell0(1:N0-1)%tracer*cell0(1:N0-1)%discharge
+!     fluxleft(4,:) = cell0(1:N0-1)%sigmaxx*cell0(1:N0-1)%discharge
+!     fluxleft(5,:) = cell0(1:N0-1)%sigmazz*cell0(1:N0-1)%discharge
+    fluxleft(3,:) = cell0(1:N0-1)%htracer*cell0(1:N0-1)%velocity
+    fluxleft(4,:) = cell0(1:N0-1)%hsigmaxx*cell0(1:N0-1)%velocity
+    fluxleft(5,:) = cell0(1:N0-1)%hsigmazz*cell0(1:N0-1)%velocity
     fluxright(1,:) = fluxleft(1,:)
     fluxright(2,:) = fluxleft(2,:)
     fluxright(3,:) = fluxleft(3,:)
-    fluxright(4,:) = cell0(2:N0)%sigmaxx*cell0(2:N0)%discharge & 
-      - leftvelocity*(leftsigmaxx*leftdepth-cell0(1:N0-1)%sigmaxx*cell0(1:N0-1)%depth) &
-      - suliciuvelocity*(rightsigmaxx*rightdepth-leftsigmaxx*leftdepth) &
-      - rightvelocity*(cell0(2:N0)%sigmaxx*cell0(2:N0)%depth-rightsigmaxx*rightdepth)
-    fluxright(5,:) = cell0(2:N0)%sigmazz*cell0(2:N0)%discharge & 
-      - leftvelocity*(leftsigmazz*leftdepth-cell0(1:N0-1)%sigmazz*cell0(1:N0-1)%depth) &
-      - suliciuvelocity*(rightsigmazz*rightdepth-leftsigmazz*leftdepth) &
-      - rightvelocity*(cell0(2:N0)%sigmazz*cell0(2:N0)%depth-rightsigmazz*rightdepth)
+!     fluxright(4,:) = cell0(2:N0)%sigmaxx*cell0(2:N0)%discharge & 
+!       - leftvelocity*(leftsigmaxx*leftdepth-cell0(1:N0-1)%sigmaxx*cell0(1:N0-1)%depth) &
+!       - suliciuvelocity*(rightsigmaxx*rightdepth-leftsigmaxx*leftdepth) &
+!       - rightvelocity*(cell0(2:N0)%sigmaxx*cell0(2:N0)%depth-rightsigmaxx*rightdepth)
+!     fluxright(5,:) = cell0(2:N0)%sigmazz*cell0(2:N0)%discharge & 
+!       - leftvelocity*(leftsigmazz*leftdepth-cell0(1:N0-1)%sigmazz*cell0(1:N0-1)%depth) &
+!       - suliciuvelocity*(rightsigmazz*rightdepth-leftsigmazz*leftdepth) &
+!       - rightvelocity*(cell0(2:N0)%sigmazz*cell0(2:N0)%depth-rightsigmazz*rightdepth)
+    fluxright(4,:) = cell0(2:N0)%hsigmaxx*cell0(2:N0)%velocity & 
+      - leftvelocity*(lefthsigmaxx-cell0(1:N0-1)%hsigmaxx) &
+      - suliciuvelocity*(righthsigmaxx-lefthsigmaxx) &
+      - rightvelocity*(cell0(2:N0)%hsigmaxx-righthsigmaxx)
+    fluxright(5,:) = cell0(2:N0)%hsigmazz*cell0(2:N0)%velocity & 
+      - leftvelocity*(lefthsigmazz-cell0(1:N0-1)%hsigmazz) &
+      - suliciuvelocity*(righthsigmazz-lefthsigmazz) &
+      - rightvelocity*(cell0(2:N0)%hsigmazz-righthsigmazz)
   end where
   where( (suliciuvelocity>=0.).AND.(leftvelocity<0.) )
     fluxleft(1,:) = leftdepth*suliciuvelocity
     fluxleft(2,:) = leftdepth*suliciuvelocity**2 + suliciupressure
     fluxleft(3,:) = cell0(1:N0-1)%tracer*leftdepth*suliciuvelocity
-    fluxleft(4,:) = cell0(1:N0-1)%sigmaxx*cell0(1:N0-1)%discharge &
-      + leftvelocity*(leftsigmaxx*leftdepth-cell0(1:N0-1)%sigmaxx*cell0(1:N0-1)%depth)
-    fluxleft(5,:) = cell0(1:N0-1)%sigmazz*cell0(1:N0-1)%discharge &
-      + leftvelocity*(leftsigmazz*leftdepth-cell0(1:N0-1)%sigmazz*cell0(1:N0-1)%depth)
+!     fluxleft(4,:) = cell0(1:N0-1)%sigmaxx*cell0(1:N0-1)%discharge &
+!       + leftvelocity*(leftsigmaxx*leftdepth-cell0(1:N0-1)%sigmaxx*cell0(1:N0-1)%depth)
+!     fluxleft(5,:) = cell0(1:N0-1)%sigmazz*cell0(1:N0-1)%discharge &
+!       + leftvelocity*(leftsigmazz*leftdepth-cell0(1:N0-1)%sigmazz*cell0(1:N0-1)%depth)
+    fluxleft(4,:) = cell0(1:N0-1)%hsigmaxx*cell0(1:N0-1)%velocity &
+      + leftvelocity*(lefthsigmaxx-cell0(1:N0-1)%hsigmaxx)
+    fluxleft(5,:) = cell0(1:N0-1)%hsigmazz*cell0(1:N0-1)%velocity &
+      + leftvelocity*(lefthsigmazz-cell0(1:N0-1)%hsigmazz)
     fluxright(1,:) = fluxleft(1,:)
     fluxright(2,:) = fluxleft(2,:)
     fluxright(3,:) = fluxleft(3,:)
-    fluxright(4,:) = cell0(2:N0)%sigmaxx*cell0(2:N0)%discharge & 
-      - suliciuvelocity*(rightsigmaxx*rightdepth-leftsigmaxx*leftdepth) &
-      - rightvelocity*(cell0(2:N0)%sigmaxx*cell0(2:N0)%depth-rightsigmaxx*rightdepth)
-    fluxright(5,:) = cell0(2:N0)%sigmazz*cell0(2:N0)%discharge & 
-      - suliciuvelocity*(rightsigmazz*rightdepth-leftsigmazz*leftdepth) &
-      - rightvelocity*(cell0(2:N0)%sigmazz*cell0(2:N0)%depth-rightsigmazz*rightdepth)
+!     fluxright(4,:) = cell0(2:N0)%sigmaxx*cell0(2:N0)%discharge & 
+!       - suliciuvelocity*(rightsigmaxx*rightdepth-leftsigmaxx*leftdepth) &
+!       - rightvelocity*(cell0(2:N0)%sigmaxx*cell0(2:N0)%depth-rightsigmaxx*rightdepth)
+!     fluxright(5,:) = cell0(2:N0)%sigmazz*cell0(2:N0)%discharge & 
+!       - suliciuvelocity*(rightsigmazz*rightdepth-leftsigmazz*leftdepth) &
+!       - rightvelocity*(cell0(2:N0)%sigmazz*cell0(2:N0)%depth-rightsigmazz*rightdepth)
+    fluxright(4,:) = cell0(2:N0)%hsigmaxx*cell0(2:N0)%velocity & 
+      - suliciuvelocity*(righthsigmaxx-lefthsigmaxx) &
+      - rightvelocity*(cell0(2:N0)%hsigmaxx-righthsigmaxx)
+    fluxright(5,:) = cell0(2:N0)%hsigmazz*cell0(2:N0)%velocity & 
+      - suliciuvelocity*(righthsigmazz-lefthsigmazz) &
+      - rightvelocity*(cell0(2:N0)%hsigmazz-righthsigmazz)
   end where
   where( (suliciuvelocity<0.).AND.(rightvelocity>=0.) )
     fluxleft(1,:) = rightdepth*suliciuvelocity
     fluxleft(2,:) = rightdepth*suliciuvelocity**2 + suliciupressure
     fluxleft(3,:) = cell0(2:N0)%tracer*rightdepth*suliciuvelocity
-    fluxleft(4,:) = cell0(1:N0-1)%sigmaxx*cell0(1:N0-1)%discharge &
-      + leftvelocity*(leftsigmaxx*leftdepth-cell0(1:N0-1)%sigmaxx*cell0(1:N0-1)%depth) &
-      + suliciuvelocity*(rightsigmaxx*rightdepth-leftsigmaxx)
-    fluxleft(5,:) = cell0(1:N0-1)%sigmazz*cell0(1:N0-1)%discharge &
-      + leftvelocity*(leftsigmazz*leftdepth-cell0(1:N0-1)%sigmazz*cell0(1:N0-1)%depth) &
-      + suliciuvelocity*(rightsigmazz*rightdepth-leftsigmazz)
+!     fluxleft(4,:) = cell0(1:N0-1)%sigmaxx*cell0(1:N0-1)%discharge &
+!       + leftvelocity*(leftsigmaxx*leftdepth-cell0(1:N0-1)%sigmaxx*cell0(1:N0-1)%depth) &
+!       + suliciuvelocity*(rightsigmaxx*rightdepth-leftsigmaxx)
+!     fluxleft(5,:) = cell0(1:N0-1)%sigmazz*cell0(1:N0-1)%discharge &
+!       + leftvelocity*(leftsigmazz*leftdepth-cell0(1:N0-1)%sigmazz*cell0(1:N0-1)%depth) &
+!       + suliciuvelocity*(rightsigmazz*rightdepth-leftsigmazz*leftdepth)
+    fluxleft(4,:) = cell0(1:N0-1)%hsigmaxx*cell0(1:N0-1)%velocity &
+      + leftvelocity*(lefthsigmaxx-cell0(1:N0-1)%hsigmaxx) &
+      + suliciuvelocity*(righthsigmaxx-lefthsigmaxx)
+    fluxleft(5,:) = cell0(1:N0-1)%hsigmazz*cell0(1:N0-1)%velocity &
+      + leftvelocity*(lefthsigmazz-cell0(1:N0-1)%hsigmazz) &
+      + suliciuvelocity*(righthsigmazz-lefthsigmazz)
     fluxright(1,:) = fluxleft(1,:)
     fluxright(2,:) = fluxleft(2,:)
     fluxright(3,:) = fluxleft(3,:)
-    fluxright(4,:) = cell0(2:N0)%sigmaxx*cell0(2:N0)%discharge & 
-      - rightvelocity*(cell0(2:N0)%sigmaxx*cell0(2:N0)%depth-rightsigmaxx*rightdepth)
-    fluxright(5,:) = cell0(2:N0)%sigmazz*cell0(2:N0)%discharge & 
-      - rightvelocity*(cell0(2:N0)%sigmazz*cell0(2:N0)%depth-rightsigmazz*rightdepth)
+!     fluxright(4,:) = cell0(2:N0)%sigmaxx*cell0(2:N0)%discharge & 
+!       - rightvelocity*(cell0(2:N0)%sigmaxx*cell0(2:N0)%depth-rightsigmaxx*rightdepth)
+!     fluxright(5,:) = cell0(2:N0)%sigmazz*cell0(2:N0)%discharge & 
+!       - rightvelocity*(cell0(2:N0)%sigmazz*cell0(2:N0)%depth-rightsigmazz*rightdepth)
+    fluxright(4,:) = cell0(2:N0)%hsigmaxx*cell0(2:N0)%velocity & 
+      - rightvelocity*(cell0(2:N0)%hsigmaxx-righthsigmaxx)
+    fluxright(5,:) = cell0(2:N0)%hsigmazz*cell0(2:N0)%velocity & 
+      - rightvelocity*(cell0(2:N0)%hsigmazz-righthsigmazz)
   end where
   where( (suliciuvelocity<0.).AND.(rightvelocity<0.) )
     fluxleft(1,:) = cell0(2:N0)%depth*cell0(2:N0)%velocity
     fluxleft(2,:) = cell0(2:N0)%depth*cell0(2:N0)%velocity**2 + cell0(2:N0)%pressure 
-    fluxleft(3,:) = cell0(2:N0)%tracer*cell0(2:N0)%discharge
-    fluxleft(4,:) = cell0(1:N0-1)%sigmaxx*cell0(1:N0-1)%discharge &
-      + leftvelocity*(leftsigmaxx*leftdepth-cell0(1:N0-1)%sigmaxx*cell0(1:N0-1)%depth) &
-      + suliciuvelocity*(rightsigmaxx*rightdepth-leftsigmaxx*leftdepth) &
-      + rightvelocity*(cell0(2:N0)%sigmaxx*cell0(2:N0)%depth-rightsigmaxx*rightdepth)
-    fluxleft(5,:) = cell0(1:N0-1)%sigmazz*cell0(1:N0-1)%discharge &
-      + leftvelocity*(leftsigmazz*leftdepth-cell0(1:N0-1)%sigmazz*cell0(1:N0-1)%depth) &
-      + suliciuvelocity*(rightsigmazz*rightdepth-leftsigmazz*leftdepth) &
-      + rightvelocity*(cell0(2:N0)%sigmazz*cell0(2:N0)%depth-rightsigmazz*rightdepth)
+!     fluxleft(3,:) = cell0(2:N0)%tracer*cell0(2:N0)%discharge
+!     fluxleft(4,:) = cell0(1:N0-1)%sigmaxx*cell0(1:N0-1)%discharge &
+!       + leftvelocity*(leftsigmaxx*leftdepth-cell0(1:N0-1)%sigmaxx*cell0(1:N0-1)%depth) &
+!       + suliciuvelocity*(rightsigmaxx*rightdepth-leftsigmaxx*leftdepth) &
+!       + rightvelocity*(cell0(2:N0)%sigmaxx*cell0(2:N0)%depth-rightsigmaxx*rightdepth)
+!     fluxleft(5,:) = cell0(1:N0-1)%sigmazz*cell0(1:N0-1)%discharge &
+!       + leftvelocity*(leftsigmazz*leftdepth-cell0(1:N0-1)%sigmazz*cell0(1:N0-1)%depth) &
+!       + suliciuvelocity*(rightsigmazz*rightdepth-leftsigmazz*leftdepth) &
+!       + rightvelocity*(cell0(2:N0)%sigmazz*cell0(2:N0)%depth-rightsigmazz*rightdepth)
+    fluxleft(3,:) = cell0(2:N0)%htracer*cell0(2:N0)%velocity
+    fluxleft(4,:) = cell0(1:N0-1)%hsigmaxx*cell0(1:N0-1)%velocity &
+      + leftvelocity*(lefthsigmaxx-cell0(1:N0-1)%hsigmaxx) &
+      + suliciuvelocity*(righthsigmaxx-lefthsigmaxx) &
+      + rightvelocity*(cell0(2:N0)%hsigmaxx-righthsigmaxx)
+    fluxleft(5,:) = cell0(1:N0-1)%hsigmazz*cell0(1:N0-1)%velocity &
+      + leftvelocity*(lefthsigmazz-cell0(1:N0-1)%hsigmazz) &
+      + suliciuvelocity*(righthsigmazz-lefthsigmazz) &
+      + rightvelocity*(cell0(2:N0)%hsigmazz-righthsigmazz)
     fluxright(1,:) = fluxleft(1,:)
     fluxright(2,:) = fluxleft(2,:)
     fluxright(3,:) = fluxleft(3,:)
-    fluxright(4,:) = cell0(2:N0)%sigmaxx*cell0(2:N0)%discharge
-    fluxright(5,:) = cell0(2:N0)%sigmazz*cell0(2:N0)%discharge
+!     fluxright(4,:) = cell0(2:N0)%sigmaxx*cell0(2:N0)%discharge
+!     fluxright(5,:) = cell0(2:N0)%sigmazz*cell0(2:N0)%discharge
+    fluxright(4,:) = cell0(2:N0)%hsigmaxx*cell0(2:N0)%velocity
+    fluxright(5,:) = cell0(2:N0)%hsigmazz*cell0(2:N0)%velocity
   end where
 !   print *, '---------DEBUG-------------'
 !   print '(21f10.3)', fluxleft(1,:)
@@ -428,37 +475,35 @@ subroutine printout(stencil,cell)
   Nx = size(cell)-2
   print *, 'Cell values including boundary ghost cells'
   write(mystring,*) stencil
-  print '('//mystring//'f8.3,"   ...",'//mystring//'f8.3)', &
+  print '('//mystring//'f10.5,"   ...",'//mystring//'f10.5)', &
     (/ (cell(ix)%depth, ix=1,stencil) , &
        (cell(ix)%depth, ix=Nx+2-stencil+1,Nx+2) /) 
-!   print '('//mystring//'f8.3,"   ...",'//mystring//'f8.3)', &
+!   print '('//mystring//'f10.5,"   ...",'//mystring//'f10.5)', &
 !     (/ (cell(ix)%tracer, ix=1,stencil) , &
 !         (cell(ix)%tracer, ix=Nx+2-stencil+1,Nx+2) /) 
-!   print '('//mystring//'f8.3,"   ...",'//mystring//'f8.3)', &
+!   print '('//mystring//'f10.5,"   ...",'//mystring//'f10.5)', &
 !     (/ (cell(ix)%tracer/cell(ix)%depth, ix=1,stencil) , &
 !        (cell(ix)%tracer/cell(ix)%depth, ix=Nx+2-stencil+1,Nx+2) /) 
-  print '('//mystring//'f8.3,"   ...",'//mystring//'f8.3)', &
+  print '('//mystring//'f10.5,"   ...",'//mystring//'f10.5)', &
     (/ (cell(ix)%sigmazz, ix=1,stencil) , &
        (cell(ix)%sigmazz, ix=Nx+2-stencil+1,Nx+2) /) 
 end subroutine printout
 
 subroutine writeout(cell)
   use m_cell
-! use m_zeromachine
   implicit none
   type (t_cell), dimension(:) :: cell 
   integer :: Nx
   character (len=20) :: mystring ! buffer string
   Nx = size(cell)-2
   write(mystring,*) Nx
-  write( 1, '('//mystring//'f8.3)') cell(2:(Nx+1))%depth
-  write( 2, '('//mystring//'f8.3)') cell(2:(Nx+1))%discharge
-  write( 3, '('//mystring//'f8.3)') cell(2:(Nx+1))%velocity
-  write( 4, '('//mystring//'f8.3)') cell(2:(Nx+1))%pressure
-  write( 5, '('//mystring//'f8.3)') cell(2:(Nx+1))%tracer
-! & /(cell(2:(Nx+1))%depth+myzeromachine*maxval((cell(2:(Nx+1))%depth)))
-  write( 11, '('//mystring//'f8.3)') cell(2:(Nx+1))%sigmaxx
-  write( 12, '('//mystring//'f8.3)') cell(2:(Nx+1))%sigmazz
+  write( 1, '('//mystring//'f10.5)') cell(2:(Nx+1))%depth
+  write( 2, '('//mystring//'f10.5)') cell(2:(Nx+1))%discharge
+  write( 3, '('//mystring//'f10.5)') cell(2:(Nx+1))%velocity
+  write( 5, '('//mystring//'f10.5)') cell(2:(Nx+1))%tracer
+  write( 11, '('//mystring//'f10.5)') cell(2:(Nx+1))%sigmaxx
+  write( 12, '('//mystring//'f10.5)') cell(2:(Nx+1))%sigmazz
+  write( 4, '('//mystring//'f10.5)') cell(2:(Nx+1))%pressure
 end subroutine writeout
 
 

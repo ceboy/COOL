@@ -390,7 +390,7 @@ subroutine svini
       if (cell(ix)%center<0.) then
         cell(ix)%depth = 3.d0 
       else
-        cell(ix)%depth = 0.d0
+        cell(ix)%depth = .001d0
       endif
     end do
     do ix = 1,Nx+2
@@ -405,14 +405,14 @@ subroutine svini
         cell(ix)%sigmaxx = 1.d0
         cell(ix)%sigmazz = 1.d0
       else
-        cell(ix)%tracer = 0.d0
-        cell(ix)%sigmaxx = 0.d0
-        cell(ix)%sigmazz = 0.d0
+        cell(ix)%tracer = 1.d0
+        cell(ix)%sigmaxx = 1.d0
+        cell(ix)%sigmazz = 1.d0
       endif
     end do
     do ix = 1,Nx+2
-      cell(ix)%pressure = g*cell(ix)%depth**2/2. & 
-        + elasticmodulus*(cell(ix)%sigmazz-cell(ix)%sigmaxx)
+      cell(ix)%pressure = g*cell(ix)%depth**2/2. 
+!& + elasticmodulus*(cell(ix)%sigmazz-cell(ix)%sigmaxx)
     end do 
   !--------------------------------------------------------------------------
   end select
