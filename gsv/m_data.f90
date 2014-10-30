@@ -7,8 +7,8 @@ module m_data
   double precision, parameter :: g = 9.81d0 ! gravity constant
   double precision :: k = 0d0  ! friction parameter
   double precision :: kwave = 2.5  ! wave number
+  double precision :: elasticmodulus = 1.e-10
   !--------------------------------------------------------------------------
-  logical :: viscoelastic ! boolean for UCM coupling
   integer :: I0 ! time-splitting
   integer :: I1 ! three-point numerical flux (order 1)
   integer :: I2 ! flux limiter (order 2 reconstruction) ; not used if 0

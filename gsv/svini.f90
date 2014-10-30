@@ -46,15 +46,15 @@ subroutine svini
       cell(ix)%velocity = 0.d0
     end do
     do ix = 1,Nx+2
-      cell(ix)%pressure = g*cell(ix)%depth**2
-    end do 
-    do ix = 1,Nx+2
       if (cell(ix)%center<0.) then
-	cell(ix)%tracer = 2.d0*cell(ix)%depth
+	cell(ix)%tracer = 2.d0
       else
-	cell(ix)%tracer = 1.d0*cell(ix)%depth
+	cell(ix)%tracer = 1.d0
       endif
     end do
+    do ix = 1,Nx+2
+      cell(ix)%pressure = g*cell(ix)%depth**2/2.
+    end do 
   !--------------------------------------------------------------------------
   case(2)
     Tmax = .5d0
@@ -95,15 +95,15 @@ subroutine svini
       cell(ix)%velocity = 0d0
     end do
     do ix = 1,Nx+2
-      cell(ix)%pressure = g*cell(ix)%depth**2
-    end do 
-    do ix = 1,Nx+2
       if (cell(ix)%center<0.) then
-	cell(ix)%tracer = 2.d0*cell(ix)%depth
+	cell(ix)%tracer = 2.d0
       else
-	cell(ix)%tracer = 1.d0*cell(ix)%depth
+	cell(ix)%tracer = 1.d0
       endif
     end do
+    do ix = 1,Nx+2
+      cell(ix)%pressure = g*cell(ix)%depth**2/2.
+    end do 
   !--------------------------------------------------------------------------
   case(3)
     Tmax = .5d0
@@ -144,15 +144,15 @@ subroutine svini
       cell(ix)%velocity = 0d0
     end do
     do ix = 1,Nx+2
-      cell(ix)%pressure = g*cell(ix)%depth**2
-    end do 
-    do ix = 1,Nx+2
       if ((cell(ix)%center<.5).AND.(cell(ix)%center>-.5)) then
-	cell(ix)%tracer = 2.d0*cell(ix)%depth
+	cell(ix)%tracer = 2.d0
       else
-	cell(ix)%tracer = 1.d0*cell(ix)%depth
+	cell(ix)%tracer = 1.d0
       endif
     end do
+    do ix = 1,Nx+2
+      cell(ix)%pressure = g*cell(ix)%depth**2/2.
+    end do 
   !--------------------------------------------------------------------------
   case(4)
     Tmax = .5d0
@@ -193,15 +193,15 @@ subroutine svini
       cell(ix)%velocity = 0d0
     end do
     do ix = 1,Nx+2
-      cell(ix)%pressure = g*cell(ix)%depth**2
-    end do 
-    do ix = 1,Nx+2
       if ((cell(ix)%center>2.).OR.(cell(ix)%center<-2.)) then
-	cell(ix)%tracer = 2.d0*cell(ix)%depth
+	cell(ix)%tracer = 2.d0
       else
-	cell(ix)%tracer = 1.d0*cell(ix)%depth
+	cell(ix)%tracer = 1.d0
       endif
     end do
+    do ix = 1,Nx+2
+      cell(ix)%pressure = g*cell(ix)%depth**2/2.
+    end do 
   !--------------------------------------------------------------------------
   case(5)
     Tmax = .5d0
@@ -244,15 +244,15 @@ subroutine svini
       cell(ix)%velocity = 0d0
     end do
     do ix = 1,Nx+2
-      cell(ix)%pressure = g*cell(ix)%depth**2
-    end do 
-    do ix = 1,Nx+2
       if ((cell(ix)%center>-1.).AND.(cell(ix)%center<1.)) then
-	cell(ix)%tracer = 1.d0*cell(ix)%depth
+	cell(ix)%tracer = 1.d0
       else
-	cell(ix)%tracer = 0.d0*cell(ix)%depth
+	cell(ix)%tracer = 0.d0
       endif
     end do
+    do ix = 1,Nx+2
+      cell(ix)%pressure = g*cell(ix)%depth**2/2.
+    end do 
   !--------------------------------------------------------------------------
   case(6)
     Tmax = .5d0
@@ -295,15 +295,15 @@ subroutine svini
       cell(ix)%velocity = 0d0
     end do
     do ix = 1,Nx+2
-      cell(ix)%pressure = g*cell(ix)%depth**2
-    end do 
-    do ix = 1,Nx+2
       if ((cell(ix)%center>-1.).AND.(cell(ix)%center<1.)) then
-	cell(ix)%tracer = 1.d0*cell(ix)%depth
+	cell(ix)%tracer = 1.d0
       else
-	cell(ix)%tracer = 0.d0*cell(ix)%depth
+	cell(ix)%tracer = 0.d0
       endif
     end do
+    do ix = 1,Nx+2
+      cell(ix)%pressure = g*cell(ix)%depth**2/2.
+    end do 
   !--------------------------------------------------------------------------
   case(7)
     Tmax = .5d0
@@ -344,15 +344,22 @@ subroutine svini
       cell(ix)%velocity = 0d0
     end do
     do ix = 1,Nx+2
-      cell(ix)%pressure = g*cell(ix)%depth**2
-    end do 
-    viscoelastic = .TRUE.
+      if (cell(ix)%center<0.) then
+	cell(ix)%tracer = 2.d0
+      else
+	cell(ix)%tracer = 1.d0
+      endif
+    end do
     do ix = 1,Nx+2
       cell(ix)%sigmaxx = 1.d0
     end do
     do ix = 1,Nx+2
       cell(ix)%sigmazz = 1.d0
     end do
+    do ix = 1,Nx+2
+      cell(ix)%pressure = g*cell(ix)%depth**2/2. & 
+        + elasticmodulus*(cell(ix)%sigmazz-cell(ix)%sigmaxx)
+    end do 
   !--------------------------------------------------------------------------
   end select
 end subroutine svini

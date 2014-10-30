@@ -16,9 +16,8 @@ program sv
   integer :: myinteger, stencil
   !--------------------------------------------------------------------------
   interface
-    subroutine riemann(fluxleft,fluxright,t_neighbour,cell0,g,viscoelastic)
+    subroutine riemann(fluxleft,fluxright,t_neighbour,cell0,g)
       use m_cell
-      logical :: viscoelastic
       double precision :: g
       type (t_cell), dimension(:) :: cell0 
       double precision :: t_neighbour
@@ -45,8 +44,7 @@ program sv
   print *, 'The step size in space is ', dx
   print *, 'Post-processing every ', dt_clock
   ! Parameterization ---------------------------------------------------------------
-  Neq = 3
-  if(viscoelastic.eqv..TRUE.) Neq = 5
+  Neq = 5
   allocate( cell1(Nx+2), fluxleft(Neq,Nx+1), fluxright(Neq,Nx+1) )
   open(unit=0,file='dt.res',form='formatted',status='new')
   open(unit=1,file='h.res',form='formatted',status='new')
@@ -72,14 +70,13 @@ program sv
   time_loop : do while((t<Tmax).AND.(nt<Ntmax))
     nt = nt+1 
     ! Flux obtained from homogeneous (approximate) Riemann problems --------------
-    call riemann(fluxleft,fluxright,t_neighbour,cell1,g,viscoelastic) !! Suliciu : choice ?
+    call riemann(fluxleft,fluxright,t_neighbour,cell1,g) !! Suliciu : choice ?
     cell1(2:Nx+1)%depth = (fluxleft(1,1:Nx)-fluxright(1,2:Nx+1))/cell(2:Nx+1)%volume
     cell1(2:Nx+1)%discharge = (fluxleft(2,1:Nx)-fluxright(2,2:Nx+1))/cell(2:Nx+1)%volume
     cell1(2:Nx+1)%tracer = (fluxleft(3,1:Nx)-fluxright(3,2:Nx+1))/cell(2:Nx+1)%volume
-    if(viscoelastic.eqv..TRUE.) then
-      cell1(2:Nx+1)%sigmaxx = (fluxleft(4,1:Nx)-fluxright(4,2:Nx+1))/cell(2:Nx+1)%volume
-      cell1(2:Nx+1)%sigmazz = (fluxleft(5,1:Nx)-fluxright(5,2:Nx+1))/cell(2:Nx+1)%volume
-    end if
+    cell1(2:Nx+1)%sigmaxx = (fluxleft(4,1:Nx)-fluxright(4,2:Nx+1))/cell(2:Nx+1)%volume
+    cell1(2:Nx+1)%sigmazz = (fluxleft(5,1:Nx)-fluxright(5,2:Nx+1))/cell(2:Nx+1)%volume
+    ! ABOVE: in fact one should create a new type flux with attributes similar to cell !
     ! Time-step ------------------------------------------------------------------
     dt = t_neighbour*CFL
     if (t_neighbour<dtmin) then
@@ -100,42 +97,40 @@ program sv
     write( 0, '(3e15.6)') thist(1:3,nt)
     t = t+dt
     ! First-order time-splitting ------------------------------------------------
-    if(viscoelastic.eqv..TRUE.) then
-      cell(2:Nx+1)%sigmaxx = cell(2:Nx+1)%sigmaxx*cell(2:Nx+1)%depth ! h*sigmaxx
-      cell(2:Nx+1)%sigmazz = cell(2:Nx+1)%sigmazz*cell(2:Nx+1)%depth ! h*sigmazz
-    end if
+    !! Compute extensive integrals of intensive variables
+    cell(2:Nx+1)%tracer = cell(2:Nx+1)%tracer*cell(2:Nx+1)%depth ! h*tracer
+    cell(2:Nx+1)%sigmaxx = cell(2:Nx+1)%sigmaxx*cell(2:Nx+1)%depth ! h*sigmaxx
+    cell(2:Nx+1)%sigmazz = cell(2:Nx+1)%sigmazz*cell(2:Nx+1)%depth ! h*sigmazz
+    !! Update volume and all (extensive) variables -- kinematic
     cell(2:Nx+1)%depth = cell(2:Nx+1)%depth + dt*cell1(2:Nx+1)%depth
-    cell(2:Nx+1)%discharge = cell(2:Nx+1)%discharge + dt*cell1(2:Nx+1)%discharge
     if(minval(cell(2:Nx+1)%depth)<0.) then
       print *, 'Negative depth!'
       exit
     end if
-    cell(2:Nx+1)%tracer = cell(2:Nx+1)%tracer + dt*cell1(2:Nx+1)%tracer
     cell(2:Nx+1)%pressure = g*cell(2:Nx+1)%depth**2/2
-    !cell(2:Nx+1)%velocity = cell1(2:Nx+1)%discharge/cell1(2:Nx+1)%depth !! /0
+    cell(2:Nx+1)%discharge = cell(2:Nx+1)%discharge + dt*cell1(2:Nx+1)%discharge
+    cell(2:Nx+1)%tracer = cell(2:Nx+1)%tracer + dt*cell1(2:Nx+1)%tracer ! h*tracer
+    cell(2:Nx+1)%sigmaxx = cell(2:Nx+1)%sigmaxx + dt*cell1(2:Nx+1)%sigmaxx ! h*sigmaxx
+    cell(2:Nx+1)%sigmazz = cell(2:Nx+1)%sigmazz + dt*cell1(2:Nx+1)%sigmazz ! h*sigmazz
+    !! Restore (cell-averaged) intensive variables
     where( cell(2:Nx+1)%depth>0. )
       cell(2:Nx+1)%velocity = cell(2:Nx+1)%discharge/cell(2:Nx+1)%depth
+      cell(2:Nx+1)%tracer = cell(2:Nx+1)%tracer/cell(2:Nx+1)%depth
+      cell(2:Nx+1)%sigmaxx = cell(2:Nx+1)%sigmaxx/cell(2:Nx+1)%depth
+      cell(2:Nx+1)%sigmazz = cell(2:Nx+1)%sigmazz/cell(2:Nx+1)%depth
     elsewhere
       cell(2:Nx+1)%velocity = 0.
+      cell(2:Nx+1)%tracer = 0.
+      cell(2:Nx+1)%sigmaxx = 0.
+      cell(2:Nx+1)%sigmazz = 0.
     end where
-    if(viscoelastic.eqv..TRUE.) then
-      cell(2:Nx+1)%sigmaxx = cell(2:Nx+1)%sigmaxx + dt*cell1(2:Nx+1)%sigmaxx ! h*sigmaxx
-      cell(2:Nx+1)%sigmazz = cell(2:Nx+1)%sigmazz + dt*cell1(2:Nx+1)%sigmazz ! h*sigmazz
-      where( cell(2:Nx+1)%depth>0. )
-	cell(2:Nx+1)%sigmaxx = cell(2:Nx+1)%sigmaxx/cell(2:Nx+1)%depth
-	cell(2:Nx+1)%sigmazz = cell(2:Nx+1)%sigmazz/cell(2:Nx+1)%depth
-      elsewhere
-	cell(2:Nx+1)%sigmaxx = 0.
-	cell(2:Nx+1)%sigmazz = 0.
-      end where
-    end if
     ! Post-processing and boundary conditions applied to copy cell1 --------------
     cell1 = cell 
-    !cell1 = trunc(cell,myzeromachine) ! to handle vacuum in the approximate Riemann solver
+    !cell1 = trunc(cell,myzeromachine) ! to repair vacuum in the approximate Riemann solver
     cell1(1) = cell1(2) ! no-flux
     cell1(Nx+2) = cell1(Nx+1) ! no-flux
     if(mylogical) then
-      call printout(stencil,trunc(cell1,myzeromachine))
+      call printout(stencil,cell1) ! printout(stencil,trunc(cell1))
       print '("* Saving data at ",f6.2," >= ",f6.2)', t, t_clock
       call writeout(cell1)
       t_clock = t_clock + dt_clock
@@ -144,16 +139,17 @@ program sv
   ! ------------------------------------------------------------
   contains
   ! ------------------------------------------------------------
-  function trunc(cell,zeromachine)
+  function trunc(cell)!,zeromachine)
     use m_cell
+    use m_zeromachine
     implicit none
     type (t_cell), dimension(:) :: cell
     type (t_cell), dimension(:), allocatable :: trunc
-    double precision :: zeromachine
+    !double precision :: zeromachine
     allocate( trunc(size(cell)) )
     trunc = cell
     where( cell%depth<=0. ) ! to handle vacuum in the approximate Riemann solver
-      trunc%depth=1e-16
+      trunc%depth=myzeromachine!1e-16
       trunc%discharge=0.
       trunc%velocity=0.
       trunc%pressure=0.
@@ -165,10 +161,9 @@ end program sv
 
 ! ------------------------------------------------------------
 
-subroutine riemann(fluxleft,fluxright,t_neighbour,cell0,g,viscoelastic)
+subroutine riemann(fluxleft,fluxright,t_neighbour,cell0,g)
   use m_cell
   implicit none
-  logical :: viscoelastic ! in fact we should invoke different Riemann solvers !
   double precision, intent(in) :: g
   type (t_cell), dimension(:), intent(in) :: cell0 
   double precision, intent(out) :: t_neighbour
@@ -239,6 +234,19 @@ subroutine riemann(fluxleft,fluxright,t_neighbour,cell0,g,viscoelastic)
     rightdepth = cell0(2:N0)%depth / &
     ( 1. - (( suliciupressure - cell0(2:N0)%pressure ) / ( rightspeed*rightparameter )) )
   end where
+  allocate( leftsigmaxx(Nface), rightsigmaxx(Nface), leftsigmazz(Nface), rightsigmazz(Nface) )
+  leftsigmaxx = 0.
+  leftsigmazz = 0.
+  rightsigmaxx = 0.
+  rightsigmazz = 0.
+  where( leftdepth/=0. ) ! recall cell0(1:N0-1)%depth==0.=>leftdepth==0.
+    leftsigmaxx = cell0(1:N0-1)%sigmaxx*(cell0(1:N0-1)%depth/leftdepth)**2
+    leftsigmazz = cell0(1:N0-1)%sigmazz*(leftdepth/cell0(1:N0-1)%depth)**2
+  end where
+  where( rightdepth/=0. ) ! recall cell0(2:N0)%depth==0.=>rightdepth==0.
+    rightsigmaxx = cell0(2:N0)%sigmaxx*(cell0(2:N0)%depth/rightdepth)**2
+    rightsigmazz = cell0(2:N0)%sigmazz*(rightdepth/cell0(2:N0)%depth)**2
+  end where
 !   print *, '---------DEBUG-------------'
 !   print *, N0
 !   mylogical = .FALSE.
@@ -271,47 +279,10 @@ subroutine riemann(fluxleft,fluxright,t_neighbour,cell0,g,viscoelastic)
 !   print '(21f10.3)', rightparameter
 !   print *, '---------DEBUG-------------'
   !!! flux computation
-  if(viscoelastic.eqv..FALSE.) then
   where( (suliciuvelocity>=0.).AND.(leftvelocity>=0.) )
     fluxleft(1,:) = cell0(1:N0-1)%depth*cell0(1:N0-1)%velocity
     fluxleft(2,:) = cell0(1:N0-1)%depth*cell0(1:N0-1)%velocity**2 + cell0(1:N0-1)%pressure
-    fluxleft(3,:) = cell0(1:N0-1)%tracer*cell0(1:N0-1)%velocity
-  end where
-  where( (suliciuvelocity>=0.).AND.(leftvelocity<0.) )
-    fluxleft(1,:) = leftdepth*suliciuvelocity
-    fluxleft(2,:) = leftdepth*suliciuvelocity**2 + suliciupressure
-    fluxleft(3,:) = cell0(1:N0-1)%tracer*suliciuvelocity
-  end where
-  where( (suliciuvelocity<0.).AND.(rightvelocity>=0.) )
-    fluxleft(1,:) = rightdepth*suliciuvelocity
-    fluxleft(2,:) = rightdepth*suliciuvelocity**2 + suliciupressure
-    fluxleft(3,:) = cell0(2:N0)%tracer*suliciuvelocity
-  end where
-  where( (suliciuvelocity<0.).AND.(rightvelocity<0.) )
-    fluxleft(1,:) = cell0(2:N0)%depth*cell0(2:N0)%velocity
-    fluxleft(2,:) = cell0(2:N0)%depth*cell0(2:N0)%velocity**2 + cell0(2:N0)%pressure 
-    fluxleft(3,:) = cell0(2:N0)%tracer*cell0(2:N0)%velocity
-  end where
-  fluxright = fluxleft ! conservative
-  end if
-  if(viscoelastic.eqv..TRUE.) then
-  allocate( leftsigmaxx(Nface), rightsigmaxx(Nface), leftsigmazz(Nface), rightsigmazz(Nface) )
-  leftsigmaxx = 0.
-  leftsigmazz = 0.
-  rightsigmaxx = 0.
-  rightsigmazz = 0.
-  where( leftdepth/=0. ) ! recall cell0(1:N0-1)%depth==0.=>leftdepth==0.
-    leftsigmaxx = cell0(1:N0-1)%sigmaxx*(cell0(1:N0-1)%depth/leftdepth)**2
-    leftsigmazz = cell0(1:N0-1)%sigmazz*(leftdepth/cell0(1:N0-1)%depth)**2
-  end where
-  where( rightdepth/=0. ) ! recall cell0(2:N0)%depth==0.=>rightdepth==0.
-    rightsigmaxx = cell0(2:N0)%sigmaxx*(cell0(2:N0)%depth/rightdepth)**2
-    rightsigmazz = cell0(2:N0)%sigmazz*(rightdepth/cell0(2:N0)%depth)**2
-  end where
-  where( (suliciuvelocity>=0.).AND.(leftvelocity>=0.) )
-    fluxleft(1,:) = cell0(1:N0-1)%depth*cell0(1:N0-1)%velocity
-    fluxleft(2,:) = cell0(1:N0-1)%depth*cell0(1:N0-1)%velocity**2 + cell0(1:N0-1)%pressure
-    fluxleft(3,:) = cell0(1:N0-1)%tracer*cell0(1:N0-1)%velocity
+    fluxleft(3,:) = cell0(1:N0-1)%tracer*cell0(1:N0-1)%discharge
     fluxleft(4,:) = cell0(1:N0-1)%sigmaxx*cell0(1:N0-1)%discharge
     fluxleft(5,:) = cell0(1:N0-1)%sigmazz*cell0(1:N0-1)%discharge
     fluxright(1,:) = fluxleft(1,:)
@@ -329,7 +300,7 @@ subroutine riemann(fluxleft,fluxright,t_neighbour,cell0,g,viscoelastic)
   where( (suliciuvelocity>=0.).AND.(leftvelocity<0.) )
     fluxleft(1,:) = leftdepth*suliciuvelocity
     fluxleft(2,:) = leftdepth*suliciuvelocity**2 + suliciupressure
-    fluxleft(3,:) = cell0(1:N0-1)%tracer*suliciuvelocity
+    fluxleft(3,:) = cell0(1:N0-1)%tracer*leftdepth*suliciuvelocity
     fluxleft(4,:) = cell0(1:N0-1)%sigmaxx*cell0(1:N0-1)%discharge &
       + leftvelocity*(leftsigmaxx*leftdepth-cell0(1:N0-1)%sigmaxx*cell0(1:N0-1)%depth)
     fluxleft(5,:) = cell0(1:N0-1)%sigmazz*cell0(1:N0-1)%discharge &
@@ -347,7 +318,7 @@ subroutine riemann(fluxleft,fluxright,t_neighbour,cell0,g,viscoelastic)
   where( (suliciuvelocity<0.).AND.(rightvelocity>=0.) )
     fluxleft(1,:) = rightdepth*suliciuvelocity
     fluxleft(2,:) = rightdepth*suliciuvelocity**2 + suliciupressure
-    fluxleft(3,:) = cell0(2:N0)%tracer*suliciuvelocity
+    fluxleft(3,:) = cell0(2:N0)%tracer*rightdepth*suliciuvelocity
     fluxleft(4,:) = cell0(1:N0-1)%sigmaxx*cell0(1:N0-1)%discharge &
       + leftvelocity*(leftsigmaxx*leftdepth-cell0(1:N0-1)%sigmaxx*cell0(1:N0-1)%depth) &
       + suliciuvelocity*(rightsigmaxx*rightdepth-leftsigmaxx)
@@ -365,7 +336,7 @@ subroutine riemann(fluxleft,fluxright,t_neighbour,cell0,g,viscoelastic)
   where( (suliciuvelocity<0.).AND.(rightvelocity<0.) )
     fluxleft(1,:) = cell0(2:N0)%depth*cell0(2:N0)%velocity
     fluxleft(2,:) = cell0(2:N0)%depth*cell0(2:N0)%velocity**2 + cell0(2:N0)%pressure 
-    fluxleft(3,:) = cell0(2:N0)%tracer*cell0(2:N0)%velocity
+    fluxleft(3,:) = cell0(2:N0)%tracer*cell0(2:N0)%discharge
     fluxleft(4,:) = cell0(1:N0-1)%sigmaxx*cell0(1:N0-1)%discharge &
       + leftvelocity*(leftsigmaxx*leftdepth-cell0(1:N0-1)%sigmaxx*cell0(1:N0-1)%depth) &
       + suliciuvelocity*(rightsigmaxx*rightdepth-leftsigmaxx*leftdepth) &
@@ -380,7 +351,6 @@ subroutine riemann(fluxleft,fluxright,t_neighbour,cell0,g,viscoelastic)
     fluxright(4,:) = cell0(2:N0)%sigmaxx*cell0(2:N0)%discharge
     fluxright(5,:) = cell0(2:N0)%sigmazz*cell0(2:N0)%discharge
   end where
-  end if
 !   print *, '---------DEBUG-------------'
 !   print '(21f10.3)', fluxleft(1,:)
 !   print '(21f10.3)', fluxleft(2,:)
@@ -423,6 +393,8 @@ subroutine riemann(fluxleft,fluxright,t_neighbour,cell0,g,viscoelastic)
     temp3 = ( temp3 + temp1 )
     ! --
     alpha = 2. !1.5
+    !leftparameter = leftparameter*(1. + alpha*temp2/leftparameter)
+    !rightparameter = rightparameter*(1. + alpha*temp3/rightparameter)
     leftparameter = leftparameter + alpha*temp2
     rightparameter = rightparameter + alpha*temp3
   end subroutine suliciu_initialization
@@ -455,7 +427,7 @@ end subroutine printout
 
 subroutine writeout(cell)
   use m_cell
-  use m_zeromachine
+! use m_zeromachine
   implicit none
   type (t_cell), dimension(:) :: cell 
   integer :: Nx
@@ -466,8 +438,8 @@ subroutine writeout(cell)
   write( 2, '('//mystring//'f6.2)') cell(2:(Nx+1))%discharge
   write( 3, '('//mystring//'f6.2)') cell(2:(Nx+1))%velocity
   write( 4, '('//mystring//'f6.2)') cell(2:(Nx+1))%pressure
-  write( 5, '('//mystring//'f6.2)') cell(2:(Nx+1))%tracer/ &
-    (cell(2:(Nx+1))%depth+myzeromachine*maxval((cell(2:(Nx+1))%depth)))
+  write( 5, '('//mystring//'f6.2)') cell(2:(Nx+1))%tracer
+! & /(cell(2:(Nx+1))%depth+myzeromachine*maxval((cell(2:(Nx+1))%depth)))
   write( 11, '('//mystring//'f6.2)') cell(2:(Nx+1))%sigmaxx
   write( 12, '('//mystring//'f6.2)') cell(2:(Nx+1))%sigmazz
 end subroutine writeout
