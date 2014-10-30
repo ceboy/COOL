@@ -10,7 +10,7 @@ program sv
   integer :: ix                ! spatial DOF (cells) iterator
   type (t_cell), dimension(:), allocatable :: cell1 ! buffer cell
   double precision, dimension(:,:), allocatable :: fluxleft, fluxright
-  double precision :: t_neighbour ! maximal time allowed by CFL=1
+  double precision :: t_neighbour ! maximal time allowed by a CFL=1
   character (len=20) :: mystring ! buffer string
   logical :: mylogical
   integer :: myinteger, stencil
@@ -54,15 +54,14 @@ program sv
   open(unit=5,file='phi.res',form='formatted',status='new')
   open(unit=11,file='sxx.res',form='formatted',status='new')
   open(unit=12,file='szz.res',form='formatted',status='new')
-  ! ABOVE: to be improved (writeout dependency on unit numbers)
+  ! >>> ABOVE: to be improved (writeout dependency on unit numbers)
   ! Post-processing and boundary conditions applied to copy cell1 -------------------
   cell1 = cell
-  !cell1 = trunc(cell,myzeromachine) ! to handle vacuum in Riemann solver
   cell1(1) = cell1(2) ! no-flux
   cell1(Nx+2) = cell1(Nx+1) ! no-flux
   stencil = 5 ! (Nx+2)/2 ! number of cells shown on left and right boundaries <= (Nx+2)/2
   call printout(stencil,cell1)
-  print '("* Saving data at ",f6.2," >= ",f6.2)', t, t_clock
+  print '("* Saving data at ",f8.3," >= ",f8.3)', t, t_clock
   call writeout(cell1)
   t_clock = dt_clock ! next post-processing
   ! Computations -----------------------------------------------------------------
@@ -76,7 +75,8 @@ program sv
     cell1(2:Nx+1)%tracer = (fluxleft(3,1:Nx)-fluxright(3,2:Nx+1))/cell(2:Nx+1)%volume
     cell1(2:Nx+1)%sigmaxx = (fluxleft(4,1:Nx)-fluxright(4,2:Nx+1))/cell(2:Nx+1)%volume
     cell1(2:Nx+1)%sigmazz = (fluxleft(5,1:Nx)-fluxright(5,2:Nx+1))/cell(2:Nx+1)%volume
-    ! ABOVE: in fact one should create a new type flux with attributes similar to cell !
+    cell1 = trunc(cell1) ! to handle vacuum in fluxes: set to zero non-sensible values ?
+    ! >>>> ABOVE: one should better create a new type "flux" with same attributes as cell !
     ! Time-step ------------------------------------------------------------------
     dt = t_neighbour*CFL
     if (t_neighbour<dtmin) then
@@ -107,13 +107,14 @@ program sv
       print *, 'Negative depth!'
       exit
     end if
-    cell(2:Nx+1)%pressure = g*cell(2:Nx+1)%depth**2/2
+    cell(2:Nx+1)%pressure = g*cell(2:Nx+1)%depth**2/2 ! & 
+    !    + elasticmodulus*(cell(2:Nx+1)%sigmazz-cell(2:Nx+1)%sigmaxx)
     cell(2:Nx+1)%discharge = cell(2:Nx+1)%discharge + dt*cell1(2:Nx+1)%discharge
     cell(2:Nx+1)%tracer = cell(2:Nx+1)%tracer + dt*cell1(2:Nx+1)%tracer ! h*tracer
     cell(2:Nx+1)%sigmaxx = cell(2:Nx+1)%sigmaxx + dt*cell1(2:Nx+1)%sigmaxx ! h*sigmaxx
     cell(2:Nx+1)%sigmazz = cell(2:Nx+1)%sigmazz + dt*cell1(2:Nx+1)%sigmazz ! h*sigmazz
     !! Restore (cell-averaged) intensive variables
-    where( cell(2:Nx+1)%depth>0. )
+    where( (cell(2:Nx+1)%depth>0.) ) ! .AND.(cell(2:Nx+1)%discharge>0.)
       cell(2:Nx+1)%velocity = cell(2:Nx+1)%discharge/cell(2:Nx+1)%depth
       cell(2:Nx+1)%tracer = cell(2:Nx+1)%tracer/cell(2:Nx+1)%depth
       cell(2:Nx+1)%sigmaxx = cell(2:Nx+1)%sigmaxx/cell(2:Nx+1)%depth
@@ -126,12 +127,12 @@ program sv
     end where
     ! Post-processing and boundary conditions applied to copy cell1 --------------
     cell1 = cell 
-    !cell1 = trunc(cell,myzeromachine) ! to repair vacuum in the approximate Riemann solver
+    ! trunc(cell) !,myzeromachine) ! to repair vacuum from approximate Riemann solver ??
     cell1(1) = cell1(2) ! no-flux
     cell1(Nx+2) = cell1(Nx+1) ! no-flux
     if(mylogical) then
       call printout(stencil,cell1) ! printout(stencil,trunc(cell1))
-      print '("* Saving data at ",f6.2," >= ",f6.2)', t, t_clock
+      print '("* Saving data at ",f8.3," >= ",f8.3)', t, t_clock
       call writeout(cell1)
       t_clock = t_clock + dt_clock
     end if
@@ -145,16 +146,32 @@ program sv
     implicit none
     type (t_cell), dimension(:) :: cell
     type (t_cell), dimension(:), allocatable :: trunc
+    double precision :: ref
     !double precision :: zeromachine
     allocate( trunc(size(cell)) )
     trunc = cell
-    where( cell%depth<=0. ) ! to handle vacuum in the approximate Riemann solver
-      trunc%depth=myzeromachine!1e-16
-      trunc%discharge=0.
-      trunc%velocity=0.
-      trunc%pressure=0.
-      trunc%tracer=0.
-    end where
+    ! where( cell%depth<=0. ) ! to handle vacuum in the approximate Riemann solver
+    !   trunc%depth=myzeromachine!1e-16
+    !   trunc%discharge=0.
+    !   trunc%velocity=0.
+    !   trunc%pressure=0.
+    !   trunc%tracer=0.
+    ! end where
+    ref = max(maxval(cell%depth),-minval(cell%depth))
+    where( (cell%depth<=myzeromachine*ref).AND.(cell%depth>0.) ) trunc%depth=0.
+    where( (cell%depth>=-myzeromachine*ref).AND.(cell%depth<0.) ) trunc%depth=0.
+    ref = max(maxval(cell%discharge),-minval(cell%discharge))
+    where( (cell%discharge<=myzeromachine*ref).AND.(cell%discharge>0.) ) trunc%discharge=0.
+    where( (cell%discharge>=-myzeromachine*ref).AND.(cell%discharge<0.) ) trunc%discharge=0.
+    ref = max(maxval(cell%tracer),-minval(cell%tracer))
+    where( (cell%tracer<=myzeromachine*ref).AND.(cell%tracer>0.) ) trunc%tracer=0.
+    where( (cell%tracer>=-myzeromachine*ref).AND.(cell%tracer<0.) ) trunc%tracer=0.
+    ref = max(maxval(cell%sigmaxx),-minval(cell%sigmaxx))
+    where( (cell%sigmaxx<=myzeromachine*ref).AND.(cell%sigmaxx>0.) ) trunc%sigmaxx=0.
+    where( (cell%sigmaxx>=-myzeromachine*ref).AND.(cell%sigmaxx<0.) ) trunc%sigmaxx=0.
+    ref = max(maxval(cell%sigmazz),-minval(cell%sigmazz))
+    where( (cell%sigmazz<=myzeromachine*ref).AND.(cell%sigmazz>0.) ) trunc%sigmazz=0.
+    where( (cell%sigmazz>=-myzeromachine*ref).AND.(cell%sigmazz<0.) ) trunc%sigmazz=0.
     return
   end function
 end program sv
@@ -411,16 +428,16 @@ subroutine printout(stencil,cell)
   Nx = size(cell)-2
   print *, 'Cell values including boundary ghost cells'
   write(mystring,*) stencil
-  print '('//mystring//'f6.2,"   ...",'//mystring//'f6.2)', &
+  print '('//mystring//'f8.3,"   ...",'//mystring//'f8.3)', &
     (/ (cell(ix)%depth, ix=1,stencil) , &
        (cell(ix)%depth, ix=Nx+2-stencil+1,Nx+2) /) 
-!   print '('//mystring//'f6.2,"   ...",'//mystring//'f6.2)', &
+!   print '('//mystring//'f8.3,"   ...",'//mystring//'f8.3)', &
 !     (/ (cell(ix)%tracer, ix=1,stencil) , &
 !         (cell(ix)%tracer, ix=Nx+2-stencil+1,Nx+2) /) 
-!   print '('//mystring//'f6.2,"   ...",'//mystring//'f6.2)', &
+!   print '('//mystring//'f8.3,"   ...",'//mystring//'f8.3)', &
 !     (/ (cell(ix)%tracer/cell(ix)%depth, ix=1,stencil) , &
 !        (cell(ix)%tracer/cell(ix)%depth, ix=Nx+2-stencil+1,Nx+2) /) 
-  print '('//mystring//'f6.2,"   ...",'//mystring//'f6.2)', &
+  print '('//mystring//'f8.3,"   ...",'//mystring//'f8.3)', &
     (/ (cell(ix)%sigmazz, ix=1,stencil) , &
        (cell(ix)%sigmazz, ix=Nx+2-stencil+1,Nx+2) /) 
 end subroutine printout
@@ -434,14 +451,14 @@ subroutine writeout(cell)
   character (len=20) :: mystring ! buffer string
   Nx = size(cell)-2
   write(mystring,*) Nx
-  write( 1, '('//mystring//'f6.2)') cell(2:(Nx+1))%depth
-  write( 2, '('//mystring//'f6.2)') cell(2:(Nx+1))%discharge
-  write( 3, '('//mystring//'f6.2)') cell(2:(Nx+1))%velocity
-  write( 4, '('//mystring//'f6.2)') cell(2:(Nx+1))%pressure
-  write( 5, '('//mystring//'f6.2)') cell(2:(Nx+1))%tracer
+  write( 1, '('//mystring//'f8.3)') cell(2:(Nx+1))%depth
+  write( 2, '('//mystring//'f8.3)') cell(2:(Nx+1))%discharge
+  write( 3, '('//mystring//'f8.3)') cell(2:(Nx+1))%velocity
+  write( 4, '('//mystring//'f8.3)') cell(2:(Nx+1))%pressure
+  write( 5, '('//mystring//'f8.3)') cell(2:(Nx+1))%tracer
 ! & /(cell(2:(Nx+1))%depth+myzeromachine*maxval((cell(2:(Nx+1))%depth)))
-  write( 11, '('//mystring//'f6.2)') cell(2:(Nx+1))%sigmaxx
-  write( 12, '('//mystring//'f6.2)') cell(2:(Nx+1))%sigmazz
+  write( 11, '('//mystring//'f8.3)') cell(2:(Nx+1))%sigmaxx
+  write( 12, '('//mystring//'f8.3)') cell(2:(Nx+1))%sigmazz
 end subroutine writeout
 
 

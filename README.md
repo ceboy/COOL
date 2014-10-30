@@ -16,7 +16,7 @@ COOL
 
 >> to run a convergence testcase in subdirectories
 
-  :$ for NX in 100 200 400 800; do mkdir ${NX}; cp ./sv.exe ${NX}; cd ${NX}; ./sv.exe ${NX} > sv.log; cd ..; done & ; ./conv.py
+  :$ for NX in 100 200 400 800; do mkdir ${NX}; cp ./sv.exe ${NX}; cd ${NX}; ./sv.exe ${NX} > sv.log; cd ..; done ; ./conv.py &
 
 testcases ::
 
@@ -28,6 +28,7 @@ testcases ::
   ** 4 :: Initially-at-rest column of water 
   ** 5 :: Initially-at-rest tripled dam-break (intercation of shocks: curves)
   ** 6 :: Initially-at-rest sinusoidal wave of the free-surface (straightening, no dipersion)
-  ** 7 :: Initially-at-rest dam-break (\sim Stoker solution on a "wet" bed) with viscoelastic components
+  ** 7 :: Initially-at-rest dam-break \sim Stoker solution on a "wet" bed + viscoelastic components
+  ** 8 :: Initially-at-rest dam-break \sim Ritter solution on a "dry" bed + viscoelastic components
 
 
