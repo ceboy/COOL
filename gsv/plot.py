@@ -43,10 +43,11 @@ Z = np.array(zz)
 X = np.empty((t,Nx))
 Y = np.empty((t,Nx))
 tt = 0
+mydt = .01
 mystep = 10./float(Nx)
 while(tt<t):
   X[tt] = np.arange(-5.+mystep*.5,5.,mystep)
-  Y[tt] = np.ones((1,Nx))*tt
+  Y[tt] = np.ones((1,Nx))*tt*mydt
   tt += 1
 
 #plt.plot(*zip(*verts[1]))
@@ -71,7 +72,7 @@ ax.plot_wireframe(X, Y, Z, rstride=10, cstride=10)
 ax.set_xlabel('x')
 ax.set_xlim3d(-5.,5.)
 ax.set_ylabel('t')
-ax.set_ylim3d(0, t-1)
+ax.set_ylim3d(0,.5) # t-1)
 ax.set_zlabel(mystring)
 #ax.set_zlim3d(-1, 1)
 ax.set_zlim3d(mymin, mymax)

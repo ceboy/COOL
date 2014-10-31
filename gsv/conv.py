@@ -5,7 +5,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-mystring = 'u'
+mystring = 'Q'
 mylist1 = [1, 2, 4, 8]
 myfiles = map(lambda x:str(x)+'00/'+mystring+'.res',mylist1)
 #myfiles = map(lambda x:'Nx'+str(x)+'00/Q.res',mylist1)
@@ -65,12 +65,14 @@ tabshow = []
 for ii in range(0,nbfiles):
   myline = table[ii][ntime]
   mylen = len(myline)
-  mystep = 1./float(mylen)
+  mystep = 10./float(mylen)
   # map(lambda x: mystep*.5+x*mystep, range(0, mylen))
   tabshow.append(zip(np.arange(mystep*.5,1.,mystep),myline))
+  myarray = np.array(myline)
   # plt.plot(np.arange(mystep*.5,1.,mystep),myline,label = 'Fluid depth h using '+mylist1(ii)+'00 cells')
-  plt.plot(np.arange(mystep*.5,1.,mystep),myline)
-  
+  plt.plot(np.arange(-5.+mystep*.5,5.,mystep),myline)
+  plt.axis([-5., 5., 0.,np.amax(myarray)])
+
 #plt.show() # in this figure, we hope to see the approximation order with respect to "dx", on superimposing various time snapshots
 plt.savefig(mystring+'.png')
 
