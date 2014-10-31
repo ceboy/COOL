@@ -1,4 +1,5 @@
 subroutine svini
+  use m_physics
   use m_data
   implicit none
   !--------------------------------------------------------------------------
@@ -369,7 +370,7 @@ subroutine svini
     !Ntmax_clock = 51 !501
     !dt_clock = Tmax/(Ntmax_clock-1)
     dt_clock = 1.d-2 
-    Ntmax_clock = (Tmax/dt_clock)+1 
+    !Ntmax_clock = (Tmax/dt_clock)+1 
     CFL = .5d0
     Nx = 10
     myiarg = iargc() ! compiler dependent ? to read arguments
@@ -390,7 +391,7 @@ subroutine svini
       if (cell(ix)%center<0.) then
         cell(ix)%depth = 3.d0 
       else
-        cell(ix)%depth = .001d0
+        cell(ix)%depth = .0001d0
       endif
     end do
     do ix = 1,Nx+2
@@ -411,9 +412,12 @@ subroutine svini
       endif
     end do
     do ix = 1,Nx+2
-      cell(ix)%pressure = g*cell(ix)%depth**2/2. 
-!& + elasticmodulus*(cell(ix)%sigmazz-cell(ix)%sigmaxx)
+      cell(ix)%pressure = g*cell(ix)%depth**2/2. & 
+        + elasticmodulus*(cell(ix)%sigmazz-cell(ix)%sigmaxx)
     end do 
   !--------------------------------------------------------------------------
   end select
+  cell%htracer = cell%tracer*cell%depth
+  cell%hsigmaxx = cell%sigmaxx*cell%depth
+  cell%hsigmazz = cell%sigmazz*cell%depth
 end subroutine svini
