@@ -28,7 +28,7 @@ testcases ::
   ** 4 :: Initially-at-rest column of water 
   ** 5 :: Initially-at-rest tripled dam-break (intercation of shocks: curves)
   ** 6 :: Initially-at-rest sinusoidal wave of the free-surface (straightening, no dipersion)
-  ** 7 :: Initially-at-rest dam-break \sim Stoker solution on a "wet" bed + viscoelastic components
-  ** 8 :: Initially-at-rest dam-break \sim Ritter solution on a "dry" bed + viscoelastic components
+  ** 7 :: Initially-at-rest dam-break \sim Stoker solution on a "wet" bed + viscoelastic components (a G=1; b G=10)
+  ** 8 :: Initially-at-rest dam-break \sim Ritter solution on a "dry" bed + viscoelastic components (a G=1; b G=10)
 
 

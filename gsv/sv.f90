@@ -46,10 +46,10 @@ program sv
   open(unit=1,file='h.res',form='formatted',status='new')
   open(unit=2,file='Q.res',form='formatted',status='new')
   open(unit=3,file='u.res',form='formatted',status='new')
-  open(unit=4,file='P.res',form='formatted',status='new')
-  open(unit=5,file='phi.res',form='formatted',status='new')
+  open(unit=10,file='phi.res',form='formatted',status='new')
   open(unit=11,file='sxx.res',form='formatted',status='new')
   open(unit=12,file='szz.res',form='formatted',status='new')
+  !open(unit=4,file='P.res',form='formatted',status='new')
   ! >>> ABOVE: to be improved (writeout dependency on unit numbers)
   ! Post-processing and boundary conditions applied to copy interf -------------------
   allocate( interf(Nx+2) )
@@ -71,9 +71,8 @@ program sv
     ! >>>> ABOVE: one should better create a new type "flux" with same attributes as cell !
     ! Time-step ------------------------------------------------------------------
     dt = t_neighbour*CFL
-    if (t_neighbour<dtmin) then
-      dt = dtmin
-      print *, 'dt too small'
+    if (dt<dtmin) then
+      print *, 'dt too small' !dt = dtmin
       exit
     end if
     mylogical = .FALSE.
@@ -107,7 +106,14 @@ program sv
       cell(2:Nx+1)%sigmazz = 0.
     end where
     cell(2:Nx+1)%pressure = g*cell(2:Nx+1)%depth**2/2 &
-      + elasticmodulus*(cell(2:Nx+1)%sigmazz-cell(2:Nx+1)%sigmaxx)
+      + elasticmodulus*(cell(2:Nx+1)%hsigmazz-cell(2:Nx+1)%hsigmaxx)/ &
+          (1 + oneoverell*(cell(2:Nx+1)%sigmazz+cell(2:Nx+1)%sigmaxx))
+    cell(2:Nx+1)%speed = sqrt( g*cell(2:Nx+1)%depth &
+      + elasticmodulus*(3*cell(2:Nx+1)%sigmazz+cell(2:Nx+1)%sigmaxx)/ &
+          (1 - oneoverell*(cell(2:Nx+1)%sigmazz+cell(2:Nx+1)%sigmaxx)) &
+      + oneoverell*2*elasticmodulus*((cell(2:Nx+1)%sigmazz-cell(2:Nx+1)%sigmaxx)/ &
+          (1 - oneoverell*(cell(2:Nx+1)%sigmazz+cell(2:Nx+1)%sigmaxx)))**2 )
+    !! >>>>> ABOVE: not very good, use some function/routine and in svini.f90 too
     ! Post-processing and boundary conditions applied to copy interf --------------
     interf = cell 
     interf(1) = interf(2) ! no-flux
@@ -142,6 +148,7 @@ program sv
       celltrunc%sigmaxx = 0.
       celltrunc%sigmazz = 0.
       celltrunc%pressure = 0.
+      celltrunc%speed = 0.
     end where
   endfunction celltrunc
   function fluxtrunc(interf)
@@ -210,10 +217,10 @@ subroutine writeout(cell)
   write( 1, '('//mystring//'f16.8)') cell(2:(Nx+1))%depth
   write( 2, '('//mystring//'f16.8)') cell(2:(Nx+1))%discharge
   write( 3, '('//mystring//'f16.8)') cell(2:(Nx+1))%velocity
-  write( 5, '('//mystring//'f16.8)') cell(2:(Nx+1))%tracer
+  write( 10, '('//mystring//'f16.8)') cell(2:(Nx+1))%tracer
   write( 11, '('//mystring//'f16.8)') cell(2:(Nx+1))%sigmaxx
   write( 12, '('//mystring//'f16.8)') cell(2:(Nx+1))%sigmazz
-  write( 4, '('//mystring//'f16.8)') cell(2:(Nx+1))%pressure
+  !write( 4, '('//mystring//'f16.8)') cell(2:(Nx+1))%pressure
 end subroutine writeout
 
 

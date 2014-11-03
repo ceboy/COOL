@@ -2,6 +2,8 @@ module m_data
   use m_cell
   implicit none
   integer :: testcase = 9
+  double precision :: elasticmodulus
+  double precision :: oneoverell
   !--------------------------------------------------------------------------
   integer :: I0 ! time-splitting
   integer :: I1 ! three-point numerical flux (order 1)
