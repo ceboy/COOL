@@ -1,7 +1,7 @@
 module m_data
   use m_cell
   implicit none
-  integer :: testcase = 9
+  integer :: testcase = 10
   double precision :: elasticmodulus
   double precision :: oneoverell
   double precision :: oneoverlambda

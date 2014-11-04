@@ -33,3 +33,17 @@ testcases ::
   ** 9 :: Initially-at-rest dam-break \sim Stoker solution on a "dry" bed + viscoelastic components including relaxation to equilibrium 
           (a G=1; b G=10) lambda = 1/1 (c G=1; d G=10) lambda = 1/10 (e G=1; f G=10) lambda = 1/100 (g G=1; h G=10) lambda = 1/1000
 
+
+TO DO:
+
+* add dynamics:
+  - FENE P (PEC, Giesekus, PTT)
+  - turbulent
+* add source terms:
+  - topography, introduce theta in svini and use g0=g*cos(theta) in sv.f90 etc...)
+  - friction
+  - surface tension
+  - wind
+* 2D version
+  - structured
+  - unstructured (mesh definition !)

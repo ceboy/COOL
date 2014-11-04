@@ -102,6 +102,8 @@ program sv
       + dt*oneoverlambda*cell(2:Nx+1)%depth
     cell(2:Nx+1)%hsigmazz = (1.-dt*oneoverlambda)*cell(2:Nx+1)%hsigmazz &
       + dt*oneoverlambda*cell(2:Nx+1)%depth
+    ! First-order time-splitting: step 3 forcing sources --------------------
+    cell(2:Nx+1)%discharge = cell(2:Nx+1)%discharge + dt*(g*tan(theta))*cell(2:Nx+1)%depth
     ! Post-processing: output + prepare next step -------------------------------
     cell = celltrunc(cell) ! <<<< take zero machine into account for cleaner (extensive) results
     where( (cell(2:Nx+1)%depth>0.) )
