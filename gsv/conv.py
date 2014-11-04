@@ -97,7 +97,10 @@ for nbfile in range(nbfiles-2,-1,-1):
       i +=1
   Errtab = Reftab-Curtab2 # compute absolute pointwise error
   #print Errtab # errtab[i][j] is error at point i and time j 
-  ttab[nbfile] = np.sum(np.abs(Errtab),axis=0)*.01 # L1 space-norm of absolute error: sum over points i
+  ttab[nbfile] = np.sum(np.abs(Errtab),axis=0)*.01 
+  # L1 space-norm of absolute error: sum over points i
+  #ttab[nbfile,0:nblines-1] = np.sum(np.abs(Errtab),axis=0)*.01 
+  #print ttab[nbfile,0:nblines-1] # print the absolute errors for file #(nbfile) at various times
   print ttab[nbfile] # print the absolute errors for file #(nbfile) at various times
 
 Ttab = np.transpose(ttab)

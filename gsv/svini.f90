@@ -307,7 +307,7 @@ subroutine svini
     end do 
   !--------------------------------------------------------------------------
   case(7)
-    elasticmodulus = 0
+    elasticmodulus = 0. ! <<<<<< change through arguments
     Tmax = .5d0
     dtmin = 1.d-4
     Ntmax = 100000
@@ -364,7 +364,7 @@ subroutine svini
     end do 
   !--------------------------------------------------------------------------
   case(8)
-    elasticmodulus = 10.
+    elasticmodulus = 10. ! <<<<<< change through arguments
     Tmax = .5d0
     dtmin = 1.d-6
     Ntmax = 100000
@@ -421,8 +421,9 @@ subroutine svini
     end do 
   !--------------------------------------------------------------------------
   case(9)
-    elasticmodulus = 0.
+    elasticmodulus = .001
     oneoverell = 0. !1./4.
+    oneoverlambda = 10.
     Tmax = .5d0
     dtmin = 1.d-6
     Ntmax = 100000
@@ -449,7 +450,7 @@ subroutine svini
       if (cell(ix)%center<0.) then
         cell(ix)%depth = 3.d0 
       else
-        cell(ix)%depth = 0.000000d0
+        cell(ix)%depth = 1.d0*0.
       endif
     end do
     do ix = 1,Nx+2
@@ -464,20 +465,20 @@ subroutine svini
         cell(ix)%sigmaxx = 1.d0
         cell(ix)%sigmazz = 1.d0
       else
-        cell(ix)%tracer = 1.d0
-        cell(ix)%sigmaxx = 1.d0
-        cell(ix)%sigmazz = 1.d0
+        cell(ix)%tracer = 1.d0*0.
+        cell(ix)%sigmaxx = 1.d0*0.
+        cell(ix)%sigmazz = 1.d0*0.
       endif
     end do
     do ix = 1,Nx+2
       cell(ix)%pressure = g*cell(ix)%depth**2/2 &
 	+ elasticmodulus*(cell(ix)%hsigmazz-cell(ix)%hsigmaxx)/ &
-	    (1 + oneoverell*(cell(ix)%sigmazz+cell(ix)%sigmaxx))
+	    (1. + oneoverell*(cell(ix)%sigmazz+cell(ix)%sigmaxx))
       cell(ix)%speed = sqrt( g*cell(ix)%depth &
 	+ elasticmodulus*(3*cell(ix)%sigmazz+cell(ix)%sigmaxx)/ &
-	    (1 - oneoverell*(cell(ix)%sigmazz+cell(ix)%sigmaxx)) &
+	    (1. - oneoverell*(cell(ix)%sigmazz+cell(ix)%sigmaxx)) &
 	+ oneoverell*2*elasticmodulus*((cell(ix)%sigmazz-cell(ix)%sigmaxx)/ &
-	    (1 - oneoverell*(cell(ix)%sigmazz+cell(ix)%sigmaxx)))**2 )
+	    (1. - oneoverell*(cell(ix)%sigmazz+cell(ix)%sigmaxx)))**2 )
     end do 
   !--------------------------------------------------------------------------
   end select

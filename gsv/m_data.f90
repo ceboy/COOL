@@ -4,6 +4,7 @@ module m_data
   integer :: testcase = 9
   double precision :: elasticmodulus
   double precision :: oneoverell
+  double precision :: oneoverlambda
   !--------------------------------------------------------------------------
   integer :: I0 ! time-splitting
   integer :: I1 ! three-point numerical flux (order 1)

@@ -75,16 +75,20 @@ program sv
       print *, 'dt too small' !dt = dtmin
       exit
     end if
+    if (oneoverlambda*dt>1.) then
+      dt = 1./oneoverlambda
+    end if
     mylogical = .FALSE.
     if ((t+dt>Tmax).OR.(t+dt>t_clock)) then
-      mylogical = .TRUE.
-      dt = min(Tmax-t,t_clock-t) !dt = minval( (\ Tmax-t, dt_clock \) ) 
+      mylogical = .TRUE. 
+      dt = min(Tmax-t,t_clock-t) 
+      ! dt = minval( (/ Tmax-t, t_clock-t, 1./max(myzeromachine,oneoverlambda) /) ) 
     end if
     print '("Time step at iteration ",i10," = ",e10.3," time = ",f10.2)',nt,dt,t
     thist(1,nt) = t ; thist(2,nt) = t_neighbour*CFL ; thist(3,nt) = dt
     write( 0, '(3e15.6)') thist(1:3,nt)
     t = t+dt
-    ! First-order time-splitting ------------------------------------------------
+    ! First-order time-splitting: step 1 fluxes --------------------------------
     cell(2:Nx+1)%depth = cell(2:Nx+1)%depth + dt*interf(2:Nx+1)%depth
     if(minval(cell(2:Nx+1)%depth)<0.) then
       print *, 'Negative depth!'; exit
@@ -93,6 +97,12 @@ program sv
     cell(2:Nx+1)%htracer = cell(2:Nx+1)%htracer + dt*interf(2:Nx+1)%htracer
     cell(2:Nx+1)%hsigmaxx = cell(2:Nx+1)%hsigmaxx + dt*interf(2:Nx+1)%hsigmaxx
     cell(2:Nx+1)%hsigmazz = cell(2:Nx+1)%hsigmazz + dt*interf(2:Nx+1)%hsigmazz
+    ! First-order time-splitting: step 2 dissipative sources --------------------
+    cell(2:Nx+1)%hsigmaxx = (1.-dt*oneoverlambda)*cell(2:Nx+1)%hsigmaxx &
+      + dt*oneoverlambda*cell(2:Nx+1)%depth
+    cell(2:Nx+1)%hsigmazz = (1.-dt*oneoverlambda)*cell(2:Nx+1)%hsigmazz &
+      + dt*oneoverlambda*cell(2:Nx+1)%depth
+    ! Post-processing: output + prepare next step -------------------------------
     cell = celltrunc(cell) ! <<<< take zero machine into account for cleaner (extensive) results
     where( (cell(2:Nx+1)%depth>0.) )
       cell(2:Nx+1)%velocity = cell(2:Nx+1)%discharge/cell(2:Nx+1)%depth
@@ -107,12 +117,12 @@ program sv
     end where
     cell(2:Nx+1)%pressure = g*cell(2:Nx+1)%depth**2/2 &
       + elasticmodulus*(cell(2:Nx+1)%hsigmazz-cell(2:Nx+1)%hsigmaxx)/ &
-          (1 + oneoverell*(cell(2:Nx+1)%sigmazz+cell(2:Nx+1)%sigmaxx))
+          (1. + oneoverell*(cell(2:Nx+1)%sigmazz+cell(2:Nx+1)%sigmaxx))
     cell(2:Nx+1)%speed = sqrt( g*cell(2:Nx+1)%depth &
       + elasticmodulus*(3*cell(2:Nx+1)%sigmazz+cell(2:Nx+1)%sigmaxx)/ &
-          (1 - oneoverell*(cell(2:Nx+1)%sigmazz+cell(2:Nx+1)%sigmaxx)) &
+          (1. - oneoverell*(cell(2:Nx+1)%sigmazz+cell(2:Nx+1)%sigmaxx)) &
       + oneoverell*2*elasticmodulus*((cell(2:Nx+1)%sigmazz-cell(2:Nx+1)%sigmaxx)/ &
-          (1 - oneoverell*(cell(2:Nx+1)%sigmazz+cell(2:Nx+1)%sigmaxx)))**2 )
+          (1. - oneoverell*(cell(2:Nx+1)%sigmazz+cell(2:Nx+1)%sigmaxx)))**2 )
     !! >>>>> ABOVE: not very good, use some function/routine and in svini.f90 too
     ! Post-processing and boundary conditions applied to copy interf --------------
     interf = cell 

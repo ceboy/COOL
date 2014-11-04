@@ -2,6 +2,7 @@ module m_cell
   implicit none
   type t_cell
     double precision center, volume
+    double precision bathymetry
     double precision depth
     double precision discharge, velocity
     double precision tracer, sigmaxx, sigmazz
