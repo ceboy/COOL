@@ -3,7 +3,8 @@ include $(SVPATH)/Mdefs.mk
 
 EXEC = sv.exe
 
-OBJ1 = m_zeromachine.f90 m_physics.f90 m_cell.f90 m_data.f90 riemann.f90 svini.f90 sv.f90
+OBJ1 = m_zeromachine.f90 m_physics.f90 m_cell.f90 m_data.f90 pressure.f90 riemann.f90 svini.f90 sv.f90 
+
 OBJ2 = conv.py plot.py Mdefs.mk Makefile
 
 all: $(EXEC)

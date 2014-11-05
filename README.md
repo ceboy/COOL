@@ -32,6 +32,8 @@ testcases ::
   ** 8 :: Initially-at-rest dam-break \sim Ritter solution on a "dry" bed + viscoelastic components (a G=1; b G=10)
   ** 9 :: Initially-at-rest dam-break \sim Stoker solution on a "dry" bed + viscoelastic components including relaxation to equilibrium 
           (a G=1; b G=10) lambda = 1/1 (c G=1; d G=10) lambda = 1/10 (e G=1; f G=10) lambda = 1/100 (g G=1; h G=10) lambda = 1/1000
+  ** 10 :: Initially-at-rest dam-break \sim Ritter solution on a "dry" bed + FENEP components including relaxation to equilibrium 
+  ** 11 :: Test to check HWNP (limit G->0 as lambda->0) beware 800: until 1. s !!
 
 
 TO DO:
