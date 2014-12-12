@@ -1,11 +1,14 @@
 COOL
 ====
 
-/gsv/            **Fortran code for generalized Saint-Venant equations with a few testcases**
+/gsv/ contains : **Fortran code for generalized Saint-Venant equations with a few testcases**
 
- * sv.f90        **Main containing the time loop**
- * svini.f90     **Subroutine initializing data for test case**
- * m_data.f90    **Global data accessible through m_data**
+ * sv            **Main containing the time loop**
+ * svini         **Subroutine initializing data for test case**
+ * m_zeromachine **Module where the (double precision)myzeromachine "global" variable is declared (without dependency) ; it is assigned in main (sv)**
+ * m_physics     **Module where some "global" variables are declared (constants: Pi, gravity; friction, wave number) and assigned (without dependency)**
+ * m_cell        **Module for the declaration of the new structure of type t_cell (without dependency)**
+ * m_data        **Module where "global" data is declared (requires m_cell)**
 
 >> to upload the files in a directory where to run a testcase
 
