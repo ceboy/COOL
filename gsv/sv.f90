@@ -9,7 +9,7 @@ program sv
   integer :: nt = 0            ! time iteration number
   double precision :: t = 0.   ! current time
   integer :: ix                ! spatial DOF (cells) iterator
-  type (t_cell), dimension(:), allocatable :: leftcells, rightcells ! riemann
+  type (t_cell), dimension(:), allocatable :: interf ! buffer cell
   double precision :: t_neighbour ! maximal time allowed by a CFL=1
   character (len=20) :: mystring ! buffer string
   logical :: mylogical
@@ -22,12 +22,11 @@ program sv
       type (t_cell), dimension(:) :: cell 
       double precision :: theta, gavrilyuk, elasticmodulus, oneoverell
     end subroutine pressure
-    subroutine riemann(t_neighbour,leftcells,rightcells,alpha)
+    subroutine riemann(t_neighbour,interf,alpha)
       use m_cell
-      double precision :: t_neighbour ! out: maximal time step before wave crossing
-      type (t_cell), dimension(:) :: leftcells ! in: initial cell values (incl. ghost) out: cell fluxes
-      type (t_cell), dimension(:) :: rightcells ! in: initial cell values (incl. ghost) out: cell fluxes
-      double precision :: alpha ! in: parameter entering wave speeds initialization
+      double precision :: t_neighbour
+      type (t_cell), dimension(:) :: interf 
+      double precision :: alpha
     end subroutine riemann
     subroutine printout(stencil,cell)
       use m_cell
@@ -61,33 +60,29 @@ program sv
   open(unit=14,file='macrophi.res',form='formatted',status='new')
   !open(unit=4,file='P.res',form='formatted',status='new')
   ! >>> ABOVE: to be improved (writeout dependency on unit numbers)
-  ! Post-processing and boundary conditions applied (pre-processing) -------------------
-  allocate( leftcells(Ninterf), rightcells(Ninterf) )
-  ! en pratique: besoin d'une table de correspondances entre interfaces et cellules (mesh)
-  leftcells(2:Nx+1) = cell
-  leftcells(1) = cell(1)       ! boundary 1: no-flux
-  rightcells(1:Nx) = cell
-  rightcells(Nx+1) = cell(Nx)  ! boundary Nx+1: no-flux
-  ! 
-  stencil = min(6,Nx/2) ! number of cells shown on left and right boundaries <= (Nx+2)/2
-  call printout(stencil,cell)
+  ! Post-processing and boundary conditions applied to copy interf -------------------
+  allocate( interf(Nx+2) )
+  interf = cell
+  interf(1) = interf(2) ! no-flux
+  interf(Nx+2) = interf(Nx+1) ! no-flux
+  stencil = 6 ! number of cells shown on left and right boundaries <= (Nx+2)/2
+  call printout(stencil,interf)
   print '("* Saving data at ",f16.8," >= ",f16.8)', t, t_clock
-  call writeout(cell)
+  call writeout(interf)
   t_clock = dt_clock ! next post-processing
   ! Computations -----------------------------------------------------------------
   print *, 'Entering time loop'
   time_loop : do while((t<Tmax).AND.(nt<Ntmax))
     nt = nt+1 
     ! Flux obtained from homogeneous (approximate) Riemann problems --------------
-    call riemann(t_neighbour,leftcells,rightcells,alphaspeed) !! Suliciu : choice ?
-    leftcells = fluxtrunc(leftcells) ! <<<< zero machine into account for cleaner (conservative) results
-    rightcells = fluxtrunc(rightcells) ! <<<< zero machine into account for cleaner (conservative) results
+    call riemann(t_neighbour,interf,alphaspeed) !! Suliciu : choice ?
+    interf = fluxtrunc(interf) ! <<<< zero machine into account for cleaner (conservative) results
     ! >>>> ABOVE: one should better create a new type "flux" with same attributes as cell !
     ! Time-step ------------------------------------------------------------------
     dt = t_neighbour*CFL
     if (dt<dtmin) then
-      print *, 'Error: dt too small' !dt = dtmin
-      stop !exit
+      print *, 'dt too small' !dt = dtmin
+      exit
     end if
     if (oneoverlambda*dt>1.) then
       dt = 1./oneoverlambda
@@ -103,58 +98,55 @@ program sv
     write( 0, '(3e15.6)') thist(1:3,nt)
     t = t+dt
     ! First-order time-splitting: step 1 fluxes --------------------------------
-    cell(1:Nx)%depth = cell(1:Nx)%depth + dt*(rightcells(1:Nx)%depth-leftcells(2:Nx+1)%depth)
-    if(minval(cell(1:Nx)%depth)<0.) then
+    cell(2:Nx+1)%depth = cell(2:Nx+1)%depth + dt*interf(2:Nx+1)%depth
+    if(minval(cell(2:Nx+1)%depth)<0.) then
       print *, 'Negative depth!'; exit
     end if
-    cell(1:Nx)%discharge = cell(1:Nx)%discharge + dt*(rightcells(1:Nx)%discharge-leftcells(2:Nx+1)%discharge)
-    cell(1:Nx)%htracer = cell(1:Nx)%htracer + dt*(rightcells(1:Nx)%htracer-leftcells(2:Nx+1)%htracer)
-    cell(1:Nx)%hsigmaxx = cell(1:Nx)%hsigmaxx + dt*(rightcells(1:Nx)%hsigmaxx-leftcells(2:Nx+1)%hsigmaxx)
-    cell(1:Nx)%hsigmazz = cell(1:Nx)%hsigmazz + dt*(rightcells(1:Nx)%hsigmazz-leftcells(2:Nx+1)%hsigmazz)
-    cell(1:Nx)%hmicroenstrophy = cell(1:Nx)%hmicroenstrophy + &
-      dt*(rightcells(1:Nx)%hmicroenstrophy-leftcells(2:Nx+1)%hmicroenstrophy)
-    cell(1:Nx)%hmacroenstrophy = cell(1:Nx)%hmacroenstrophy + &
-      dt*(rightcells(1:Nx)%hmacroenstrophy-leftcells(2:Nx+1)%hmacroenstrophy)
+    cell(2:Nx+1)%discharge = cell(2:Nx+1)%discharge + dt*interf(2:Nx+1)%discharge
+    cell(2:Nx+1)%htracer = cell(2:Nx+1)%htracer + dt*interf(2:Nx+1)%htracer
+    cell(2:Nx+1)%hsigmaxx = cell(2:Nx+1)%hsigmaxx + dt*interf(2:Nx+1)%hsigmaxx
+    cell(2:Nx+1)%hsigmazz = cell(2:Nx+1)%hsigmazz + dt*interf(2:Nx+1)%hsigmazz
+    cell(2:Nx+1)%hmicroenstrophy = cell(2:Nx+1)%hmicroenstrophy + dt*interf(2:Nx+1)%hmicroenstrophy
+    cell(2:Nx+1)%hmacroenstrophy = cell(2:Nx+1)%hmacroenstrophy + dt*interf(2:Nx+1)%hmacroenstrophy
     ! First-order time-splitting: step 2 dissipative sources --------------------
-    cell(1:Nx)%hsigmaxx = &
-      (1.-dt*oneoverlambda)*cell(1:Nx)%hsigmaxx + dt*oneoverlambda*cell(2:Nx+1)%depth
-    cell(1:Nx)%hsigmazz = &
-      (1.-dt*oneoverlambda)*cell(1:Nx)%hsigmazz + dt*oneoverlambda*cell(1:Nx)%depth
+    cell(2:Nx+1)%hsigmaxx = &
+      (1.-dt*oneoverlambda)*cell(2:Nx+1)%hsigmaxx + dt*oneoverlambda*cell(2:Nx+1)%depth
+    cell(2:Nx+1)%hsigmazz = &
+      (1.-dt*oneoverlambda)*cell(2:Nx+1)%hsigmazz + dt*oneoverlambda*cell(2:Nx+1)%depth
     ! First-order time-splitting: step 3 forcing sources --------------------
-    cell(1:Nx)%discharge = cell(1:Nx)%discharge + dt*(g*tan(theta))*cell(1:Nx)%depth
+    cell(2:Nx+1)%discharge = cell(2:Nx+1)%discharge + dt*(g*tan(theta))*cell(2:Nx+1)%depth
     ! Post-processing: output + prepare next step -------------------------------
     cell = celltrunc(cell) ! <<<< zero machine into account for cleaner (extensive) results
-    where( (cell%depth>0.) )
-      cell%velocity = cell%discharge/cell%depth
-      cell%tracer = cell%htracer/cell%depth
-      cell%sigmaxx = cell%hsigmaxx/cell%depth
-      cell%sigmazz = cell%hsigmazz/cell%depth
-      cell%microenstrophy = cell%hmicroenstrophy/cell%depth
-      cell%macroenstrophy = cell%hmacroenstrophy/cell%depth
+    where( (cell(2:Nx+1)%depth>0.) )
+      cell(2:Nx+1)%velocity = cell(2:Nx+1)%discharge/cell(2:Nx+1)%depth
+      cell(2:Nx+1)%tracer = cell(2:Nx+1)%htracer/cell(2:Nx+1)%depth
+      cell(2:Nx+1)%sigmaxx = cell(2:Nx+1)%hsigmaxx/cell(2:Nx+1)%depth
+      cell(2:Nx+1)%sigmazz = cell(2:Nx+1)%hsigmazz/cell(2:Nx+1)%depth
+      cell(2:Nx+1)%microenstrophy = cell(2:Nx+1)%hmicroenstrophy/cell(2:Nx+1)%depth
+      cell(2:Nx+1)%macroenstrophy = cell(2:Nx+1)%hmacroenstrophy/cell(2:Nx+1)%depth
     elsewhere
-      cell%velocity = 0.
-      cell%tracer = 0.
-      cell%sigmaxx = 0.
-      cell%sigmazz = 0.
-      cell%microenstrophy = 0.
-      cell%macroenstrophy = 0.
+      cell(2:Nx+1)%velocity = 0.
+      cell(2:Nx+1)%tracer = 0.
+      cell(2:Nx+1)%sigmaxx = 0.
+      cell(2:Nx+1)%sigmazz = 0.
+      cell(2:Nx+1)%microenstrophy = 0.
+      cell(2:Nx+1)%macroenstrophy = 0.
     end where
     ! First-order time-splitting: step 2 dissipative sources --------------------
-!     cell%hsigmaxx = &
-!       ((1.-dt*oneoverlambda)*cell%sigmaxx + dt*oneoverlambda)*cell%depth
-!     cell%hsigmazz = &
-!       ((1.-dt*oneoverlambda)*cell%sigmazz + dt*oneoverlambda)*cell%depth
+!     cell(2:Nx+1)%hsigmaxx = &
+!       ((1.-dt*oneoverlambda)*cell(2:Nx+1)%sigmaxx + dt*oneoverlambda)*cell(2:Nx+1)%depth
+!     cell(2:Nx+1)%hsigmazz = &
+!       ((1.-dt*oneoverlambda)*cell(2:Nx+1)%sigmazz + dt*oneoverlambda)*cell(2:Nx+1)%depth
     !
     call pressure(cell,theta,gavrilyuk,elasticmodulus,oneoverell)
-    ! Post-processing and boundary conditions applied (pre-processing) --------------
-    leftcells(2:Nx+1) = cell
-    rightcells(1:Nx) = cell
-    leftcells(1) = cell(1)       ! boundary 1: no-flux
-    rightcells(Nx+1) = cell(Nx)  ! boundary Nx+1: no-flux
+    ! Post-processing and boundary conditions applied to copy interf --------------
+    interf = cell 
+    interf(1) = interf(2) ! no-flux
+    interf(Nx+2) = interf(Nx+1) ! no-flux
     if(mylogical) then
-      call printout(stencil,cell)
+      call printout(stencil,interf)
       print '("* Saving data at ",f16.8," >= ",f16.8)', t, t_clock
-      call writeout(cell)
+      call writeout(interf)
       t_clock = t_clock + dt_clock
     end if
   end do time_loop 
@@ -237,15 +229,15 @@ subroutine printout(stencil,cell)
   integer :: stencil, ix, Nx
   type (t_cell), dimension(:) :: cell 
   character (len=20) :: mystring ! buffer string
-  Nx = size(cell) !-2 when BC are included
-  print *, 'Cell values' ! including boundary ghost cells'
+  Nx = size(cell)-2
+  print *, 'Cell values including boundary ghost cells'
   write(mystring,*) stencil
   print '('//mystring//'f16.8,"   ...",'//mystring//'f16.8)', &
-    (/ (cell(ix)%depth, ix=1,stencil) , & ! (cell(ix)%depth, ix=Nx+2-stencil+1,Nx+2) /) 
-       (cell(ix)%depth, ix=Nx-stencil+1,Nx) /) 
+    (/ (cell(ix)%depth, ix=1,stencil) , &
+       (cell(ix)%depth, ix=Nx+2-stencil+1,Nx+2) /) 
   print '('//mystring//'f16.8,"   ...",'//mystring//'f16.8)', &
     (/ (cell(ix)%pressure, ix=1,stencil) , &
-        (cell(ix)%pressure, ix=Nx-stencil+1,Nx) /) 
+        (cell(ix)%pressure, ix=Nx+2-stencil+1,Nx+2) /) 
 !   print '('//mystring//'f16.8,"   ...",'//mystring//'f16.8)', &
 !     (/ (cell(ix)%sigmazz, ix=1,stencil) , &
 !        (cell(ix)%sigmazz, ix=Nx+2-stencil+1,Nx+2) /) 
@@ -259,24 +251,16 @@ subroutine writeout(cell)
   type (t_cell), dimension(:) :: cell 
   integer :: Nx
   character (len=20) :: mystring ! buffer string
-  Nx = size(cell) !-2 when BC are included
+  Nx = size(cell)-2
   write(mystring,*) Nx
-  write( 1, '('//mystring//'f16.8)') cell%depth
-  write( 2, '('//mystring//'f16.8)') cell%discharge
-  write( 3, '('//mystring//'f16.8)') cell%velocity
-  write( 10, '('//mystring//'f16.8)') cell%tracer
-  write( 11, '('//mystring//'f16.8)') cell%sigmaxx
-  write( 12, '('//mystring//'f16.8)') cell%sigmazz
-  write( 13, '('//mystring//'f16.8)') cell%microenstrophy
-  write( 14, '('//mystring//'f16.8)') cell%macroenstrophy
-!   write( 1, '('//mystring//'f16.8)') cell(2:(Nx+1))%depth
-!   write( 2, '('//mystring//'f16.8)') cell(2:(Nx+1))%discharge
-!   write( 3, '('//mystring//'f16.8)') cell(2:(Nx+1))%velocity
-!   write( 10, '('//mystring//'f16.8)') cell(2:(Nx+1))%tracer
-!   write( 11, '('//mystring//'f16.8)') cell(2:(Nx+1))%sigmaxx
-!   write( 12, '('//mystring//'f16.8)') cell(2:(Nx+1))%sigmazz
-!   write( 13, '('//mystring//'f16.8)') cell(2:(Nx+1))%microenstrophy
-!   write( 14, '('//mystring//'f16.8)') cell(2:(Nx+1))%macroenstrophy
+  write( 1, '('//mystring//'f16.8)') cell(2:(Nx+1))%depth
+  write( 2, '('//mystring//'f16.8)') cell(2:(Nx+1))%discharge
+  write( 3, '('//mystring//'f16.8)') cell(2:(Nx+1))%velocity
+  write( 10, '('//mystring//'f16.8)') cell(2:(Nx+1))%tracer
+  write( 11, '('//mystring//'f16.8)') cell(2:(Nx+1))%sigmaxx
+  write( 12, '('//mystring//'f16.8)') cell(2:(Nx+1))%sigmazz
+  write( 13, '('//mystring//'f16.8)') cell(2:(Nx+1))%microenstrophy
+  write( 14, '('//mystring//'f16.8)') cell(2:(Nx+1))%macroenstrophy
   !write( 4, '('//mystring//'f16.8)') cell(2:(Nx+1))%pressure
 end subroutine writeout
 

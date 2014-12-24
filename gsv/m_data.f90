@@ -21,7 +21,6 @@ module m_data
   double precision :: dt_clock ! period of output/postprocessing dt<=dt_clock
   double precision :: t_clock  ! time of the next postprocessing
   integer :: Nx                ! number of spatial DOF (cells) and iterator
-  integer :: Ninterf           ! number of interfaces with Riemann problems (includes BC)
   double precision :: dx       ! cell volume (spatial step size)
   type (t_cell), dimension(:), allocatable :: cell
   double precision :: CFL      ! condition number
