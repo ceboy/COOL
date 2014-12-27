@@ -39,6 +39,19 @@ subroutine svini
       read(Nxstring,*) Nx
     end if
     Ninterf = Nx+1
+    allocate( ileftcell(Ninterf), irightcell(Ninterf), ileftinterf(Nx), irightinterf(Nx) )
+    ileftinterf = (/ ( ix , ix = 1,Nx) /)
+    irightinterf = (/ ( ix+1 , ix = 1,Nx) /)
+    ileftcell = (/ 1, ( ix , ix = 1,Nx) /) ! no-flux: homogeneous Neumann BC
+    irightcell  = (/ ( ix , ix = 1,Nx), Nx /) ! no-flux: homogeneous Neumann BC
+!     ileftcell = (/ Nx, ( ix , ix = 1,Nx) /) ! periodic BC
+!     irightcell  = (/ ( ix , ix = 1,Nx), 1 /) ! periodic BC 
+!     print *, ileftinterf
+!     print *, irightinterf
+!     do ix = 1,Nx
+!       ileftinterf(ix) = ix
+!       irightinterf(ix) = ix+1
+!     end do
     dx = 10.d0/Nx
     allocate( cell(Nx) )
     do ix = 1,Nx
@@ -91,6 +104,11 @@ subroutine svini
       read(Nxstring,*) Nx
     end if
     Ninterf = Nx+1
+    allocate( ileftcell(Ninterf), irightcell(Ninterf), ileftinterf(Nx), irightinterf(Nx) )
+    ileftinterf = (/ ( ix , ix = 1,Nx) /)
+    irightinterf = (/ ( ix+1 , ix = 1,Nx) /)
+    ileftcell = (/ 1, ( ix , ix = 1,Nx) /) ! no-flux: homogeneous Neumann BC
+    irightcell  = (/ ( ix , ix = 1,Nx), Nx /) ! no-flux: homogeneous Neumann BC
     dx = 10.d0/Nx
     allocate( cell(Nx) )
     do ix = 1,Nx
@@ -143,6 +161,11 @@ subroutine svini
       read(Nxstring,*) Nx
     end if
     Ninterf = Nx+1
+    allocate( ileftcell(Ninterf), irightcell(Ninterf), ileftinterf(Nx), irightinterf(Nx) )
+    ileftinterf = (/ ( ix , ix = 1,Nx) /)
+    irightinterf = (/ ( ix+1 , ix = 1,Nx) /)
+    ileftcell = (/ 1, ( ix , ix = 1,Nx) /) ! no-flux: homogeneous Neumann BC
+    irightcell  = (/ ( ix , ix = 1,Nx), Nx /) ! no-flux: homogeneous Neumann BC
     dx = 10.d0/Nx
     allocate( cell(Nx) )
     do ix = 1,Nx
@@ -195,6 +218,11 @@ subroutine svini
       read(Nxstring,*) Nx
     end if
     Ninterf = Nx+1
+    allocate( ileftcell(Ninterf), irightcell(Ninterf), ileftinterf(Nx), irightinterf(Nx) )
+    ileftinterf = (/ ( ix , ix = 1,Nx) /)
+    irightinterf = (/ ( ix+1 , ix = 1,Nx) /)
+    ileftcell = (/ 1, ( ix , ix = 1,Nx) /) ! no-flux: homogeneous Neumann BC
+    irightcell  = (/ ( ix , ix = 1,Nx), Nx /) ! no-flux: homogeneous Neumann BC
     dx = 10.d0/Nx
     allocate( cell(Nx) )
     do ix = 1,Nx
@@ -247,6 +275,11 @@ subroutine svini
       read(Nxstring,*) Nx
     end if
     Ninterf = Nx+1
+    allocate( ileftcell(Ninterf), irightcell(Ninterf), ileftinterf(Nx), irightinterf(Nx) )
+    ileftinterf = (/ ( ix , ix = 1,Nx) /)
+    irightinterf = (/ ( ix+1 , ix = 1,Nx) /)
+    ileftcell = (/ 1, ( ix , ix = 1,Nx) /) ! no-flux: homogeneous Neumann BC
+    irightcell  = (/ ( ix , ix = 1,Nx), Nx /) ! no-flux: homogeneous Neumann BC
     dx = 10.d0/Nx
     allocate( cell(Nx) )
     do ix = 1,Nx
@@ -301,6 +334,11 @@ subroutine svini
       read(Nxstring,*) Nx
     end if
     Ninterf = Nx+1
+    allocate( ileftcell(Ninterf), irightcell(Ninterf), ileftinterf(Nx), irightinterf(Nx) )
+    ileftinterf = (/ ( ix , ix = 1,Nx) /)
+    irightinterf = (/ ( ix+1 , ix = 1,Nx) /)
+    ileftcell = (/ 1, ( ix , ix = 1,Nx) /) ! no-flux: homogeneous Neumann BC
+    irightcell  = (/ ( ix , ix = 1,Nx), Nx /) ! no-flux: homogeneous Neumann BC
     dx = 10.d0/Nx
     allocate( cell(Nx) )
     do ix = 1,Nx
@@ -355,6 +393,11 @@ subroutine svini
       read(Nxstring,*) Nx
     end if
     Ninterf = Nx+1
+    allocate( ileftcell(Ninterf), irightcell(Ninterf), ileftinterf(Nx), irightinterf(Nx) )
+    ileftinterf = (/ ( ix , ix = 1,Nx) /)
+    irightinterf = (/ ( ix+1 , ix = 1,Nx) /)
+    ileftcell = (/ 1, ( ix , ix = 1,Nx) /) ! no-flux: homogeneous Neumann BC
+    irightcell  = (/ ( ix , ix = 1,Nx), Nx /) ! no-flux: homogeneous Neumann BC
     dx = 10.d0/Nx
     allocate( cell(Nx) )
     do ix = 1,Nx
@@ -415,6 +458,11 @@ subroutine svini
       read(Nxstring,*) Nx
     end if
     Ninterf = Nx+1
+    allocate( ileftcell(Ninterf), irightcell(Ninterf), ileftinterf(Nx), irightinterf(Nx) )
+    ileftinterf = (/ ( ix , ix = 1,Nx) /)
+    irightinterf = (/ ( ix+1 , ix = 1,Nx) /)
+    ileftcell = (/ 1, ( ix , ix = 1,Nx) /) ! no-flux: homogeneous Neumann BC
+    irightcell  = (/ ( ix , ix = 1,Nx), Nx /) ! no-flux: homogeneous Neumann BC
     dx = 10.d0/Nx
     allocate( cell(Nx) )
     do ix = 1,Nx
@@ -471,6 +519,11 @@ subroutine svini
       read(Nxstring,*) Nx
     end if
     Ninterf = Nx+1
+    allocate( ileftcell(Ninterf), irightcell(Ninterf), ileftinterf(Nx), irightinterf(Nx) )
+    ileftinterf = (/ ( ix , ix = 1,Nx) /)
+    irightinterf = (/ ( ix+1 , ix = 1,Nx) /)
+    ileftcell = (/ 1, ( ix , ix = 1,Nx) /) ! no-flux: homogeneous Neumann BC
+    irightcell  = (/ ( ix , ix = 1,Nx), Nx /) ! no-flux: homogeneous Neumann BC
     dx = 10.d0/Nx
     allocate( cell(Nx) )
     do ix = 1,Nx
@@ -527,6 +580,11 @@ subroutine svini
       read(Nxstring,*) Nx
     end if
     Ninterf = Nx+1
+    allocate( ileftcell(Ninterf), irightcell(Ninterf), ileftinterf(Nx), irightinterf(Nx) )
+    ileftinterf = (/ ( ix , ix = 1,Nx) /)
+    irightinterf = (/ ( ix+1 , ix = 1,Nx) /)
+    ileftcell = (/ 1, ( ix , ix = 1,Nx) /) ! no-flux: homogeneous Neumann BC
+    irightcell  = (/ ( ix , ix = 1,Nx), Nx /) ! no-flux: homogeneous Neumann BC
     dx = 10.d0/Nx
     allocate( cell(Nx) )
     do ix = 1,Nx
@@ -587,6 +645,11 @@ subroutine svini
       read(Nxstring,*) Nx
     end if
     Ninterf = Nx+1
+    allocate( ileftcell(Ninterf), irightcell(Ninterf), ileftinterf(Nx), irightinterf(Nx) )
+    ileftinterf = (/ ( ix , ix = 1,Nx) /)
+    irightinterf = (/ ( ix+1 , ix = 1,Nx) /)
+    ileftcell = (/ 1, ( ix , ix = 1,Nx) /) ! no-flux: homogeneous Neumann BC
+    irightcell  = (/ ( ix , ix = 1,Nx), Nx /) ! no-flux: homogeneous Neumann BC
     dx = 10.d0/Nx
     allocate( cell(Nx) )
     do ix = 1,Nx

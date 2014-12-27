@@ -30,15 +30,15 @@ testcases ::
 
   1. :: Initially-at-rest dam-break with Stoker solution on a "wet" bed (1-rarefaction + 2-shock)
   2. :: Initially-at-rest dam-break with Ritter solution on a "dry" bed (1-rarefaction + 2-shock without intermediate)
-  3. :: Initially-at-rest doubled dam-break (opposed, one on the left on on the right, with vacuum in between)
-  4. :: Initially-at-rest column of water 
+  3. :: Initially-at-rest column of water 
+  4. :: Initially-at-rest doubled dam-break (opposed, one on the left on on the right, with vacuum in between)
   5. :: Initially-at-rest tripled dam-break (interaction of shocks: curves)
   6. :: Initially-at-rest sinusoidal wave of the free-surface (straightening, no dipersion)
 
   7. :: Initially-at-rest dam-break \sim Stoker solution on a "wet" bed + viscoelastic components (a G=1; b G=10)
   8. :: Initially-at-rest dam-break \sim Ritter solution on a "dry" bed + viscoelastic components (a G=1; b G=10)
   9. :: Initially-at-rest dam-break \sim Stoker solution on a "dry" bed + viscoelastic components (a G=1; b G=10) 
-         including relaxation to equilibrium: lambda = 1/1 (c G=1; d G=10) lambda = 1/10 (e G=1; f G=10) lambda = 1/100 (g G=1; h G=10) lambda = 1/1000
+       including relaxation to equilibrium: lambda = 1/1 (c G=1; d G=10) lambda = 1/10 (e G=1; f G=10) lambda = 1/100 (g G=1; h G=10) lambda = 1/1000
 
   10. :: Initially-at-rest dam-break \sim Ritter solution on a "dry" bed + FENEP components including relaxation to equilibrium 
 

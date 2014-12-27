@@ -9,7 +9,6 @@ program sv
   integer :: nt = 0            ! time iteration number
   double precision :: t = 0.   ! current time
   integer :: ix                ! spatial DOF (cells) iterator
-  type (t_cell), dimension(:), allocatable :: leftcells, rightcells ! riemann
   double precision :: t_neighbour ! maximal time allowed by a CFL=1
   character (len=20) :: mystring ! buffer string
   logical :: mylogical
@@ -61,13 +60,16 @@ program sv
   open(unit=14,file='macrophi.res',form='formatted',status='new')
   !open(unit=4,file='P.res',form='formatted',status='new')
   ! >>> ABOVE: to be improved (writeout dependency on unit numbers)
-  ! Post-processing and boundary conditions applied (pre-processing) -------------------
+  ! Mesh connectivity ---------------------------------------------------------------
   allocate( leftcells(Ninterf), rightcells(Ninterf) )
+  ! Post-processing and boundary conditions applied (pre-processing) -------------------
   ! en pratique: besoin d'une table de correspondances entre interfaces et cellules (mesh)
-  leftcells(2:Nx+1) = cell
-  leftcells(1) = cell(1)       ! boundary 1: no-flux
-  rightcells(1:Nx) = cell
-  rightcells(Nx+1) = cell(Nx)  ! boundary Nx+1: no-flux
+  !   leftcells(2:Nx+1) = cell
+  !   leftcells(1) = cell(1)       ! boundary 1: no-flux
+  !   rightcells(1:Nx) = cell
+  !   rightcells(Nx+1) = cell(Nx)  ! boundary Nx+1: no-flux
+  leftcells = cell(ileftcell)
+  rightcells = cell(irightcell)
   ! 
   stencil = min(6,Nx/2) ! number of cells shown on left and right boundaries <= (Nx+2)/2
   call printout(stencil,cell)
@@ -140,17 +142,19 @@ program sv
       cell%macroenstrophy = 0.
     end where
     ! First-order time-splitting: step 2 dissipative sources --------------------
-!     cell%hsigmaxx = &
-!       ((1.-dt*oneoverlambda)*cell%sigmaxx + dt*oneoverlambda)*cell%depth
-!     cell%hsigmazz = &
-!       ((1.-dt*oneoverlambda)*cell%sigmazz + dt*oneoverlambda)*cell%depth
+    cell%hsigmaxx = &
+      ((1.-dt*oneoverlambda)*cell%sigmaxx + dt*oneoverlambda)*cell%depth
+    cell%hsigmazz = &
+      ((1.-dt*oneoverlambda)*cell%sigmazz + dt*oneoverlambda)*cell%depth
     !
     call pressure(cell,theta,gavrilyuk,elasticmodulus,oneoverell)
     ! Post-processing and boundary conditions applied (pre-processing) --------------
-    leftcells(2:Nx+1) = cell
-    rightcells(1:Nx) = cell
-    leftcells(1) = cell(1)       ! boundary 1: no-flux
-    rightcells(Nx+1) = cell(Nx)  ! boundary Nx+1: no-flux
+    !     leftcells(2:Nx+1) = cell
+    !     rightcells(1:Nx) = cell
+    !     leftcells(1) = cell(1)       ! boundary 1: no-flux
+    !     rightcells(Nx+1) = cell(Nx)  ! boundary Nx+1: no-flux
+    leftcells = cell(ileftcell)
+    rightcells = cell(irightcell)
     if(mylogical) then
       call printout(stencil,cell)
       print '("* Saving data at ",f16.8," >= ",f16.8)', t, t_clock

@@ -1,7 +1,7 @@
 module m_data
   use m_cell
   implicit none
-  integer :: testcase = 11
+  integer :: testcase = 2
   double precision :: elasticmodulus
   double precision :: oneoverell
   double precision :: oneoverlambda
@@ -21,9 +21,12 @@ module m_data
   double precision :: dt_clock ! period of output/postprocessing dt<=dt_clock
   double precision :: t_clock  ! time of the next postprocessing
   integer :: Nx                ! number of spatial DOF (cells) and iterator
-  integer :: Ninterf           ! number of interfaces with Riemann problems (includes BC)
   double precision :: dx       ! cell volume (spatial step size)
   type (t_cell), dimension(:), allocatable :: cell
+  integer :: Ninterf           ! number of interfaces with Riemann problems (includes BC)
+  integer, dimension(:), allocatable :: ileftcell, irightcell ! interf->cell
+  integer, dimension(:), allocatable :: ileftinterf, irightinterf ! cell->interf
+  type (t_cell), dimension(:), allocatable :: leftcells, rightcells ! riemann
   double precision :: CFL      ! condition number
   double precision :: alphaspeed
 end module m_data
