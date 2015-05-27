@@ -1,0 +1,142 @@
+// PROBLEM PARAMETERS
+
+string geoname = "geo3";
+int Nmesh = 4;
+real[int] Tmesh(Nmesh); 
+//Tmesh(0) = 1;
+for(int i=0; i<Nmesh; i++) Tmesh(i) = i+1;
+
+// ** analytical expression with correct BC for geo1 (upper-right square) 
+// func uxana = sin(y*pi)*(1+cos(x*pi))/2.; 
+// func uyana = -sin(x*pi)*(1+cos(y*pi))/2.;
+// func fx = pi^2*sin(y*pi)*(1./2.+cos(x*pi));
+// func fy = -pi^2*sin(x*pi)*(1./2.+cos(y*pi));
+//          |\
+//     ____ | |
+//    /    \|/     1
+// ------------------>
+//   -1    /|\____/
+//        | |
+//         \|
+// ** analytical expression with correct BC for geo3
+func uxana = sin(x+y); 
+func uyana = -sin(x+y);
+func fx = 2*sin(x+y);
+func fy = -2*sin(x+y);
+// (BEWARE exact solution of FE pb too)
+// func uxana = (x+y); 
+// func uyana = -(x+y);
+// func fx = 0.;
+// func fy = 0.;
+          
+real tgv4bc = 1.e30; // penalization parameter
+
+real eps4solver = 1.e-10;
+
+int wait4plot = 0;
+
+verbosity = 2;
+
+///////////////////////////////////////////////////////////////////////////////////
+// MACROS
+///////////////////////////////////////////////////////////////////////////////////
+
+mesh Th;
+
+varf sourcefx(u,v) = int2d(Th)(fx*v);
+
+varf sourcefy(u,v) = int2d(Th)(fy*v);
+
+varf mass(u,v) = int2d(Th)(u*v);
+
+varf rigidity(u,v) = int2d(Th)(dx(u)*dx(v)+dy(u)*dy(v));
+
+varf boundaryux(u,v) = on(1,2,3,4,u=1);
+
+varf boundaryuy(u,v) = on(1,2,3,4,u=1);
+
+///////////////////////////////////////////////////////////////////////////////////
+// COMPUTATIONS (MANY MESHES)
+///////////////////////////////////////////////////////////////////////////////////
+
+int mymesh;
+for (mymesh = 1; mymesh <= Nmesh; mymesh++)
+{
+  
+  Th = readmesh("./Mesh/"+geoname+"mesh"+mymesh+".msh");
+
+  // ** FINITE-ELEMENT SPACES
+
+  fespace Uh(Th,P1); // <<<<<< CHOICE !!!!!!!!! (BEWARE POST-PROCESSING: CONVERGENCE)
+/*  
+  fespace ThP1(Th,P1);
+  ThP1 hloc=hTriangle;
+  real[int] htab(ThP1.ndof);
+  htab(0:Uh.ndof-1)=hloc[];
+  real H=htab.sum/htab.n; 
+  cout<<"Maximal element size = "<<hloc[].max<<endl;
+  cout<<"Minimal element size = "<<hloc[].min<<endl;
+*/
+  // ** DISCRETE-PROBLEM BUILDING BLOCKS (MATRICES, VECTORS) & ASSEMBLING
+
+  matrix MASS = mass(Uh,Uh,tgv=tgv4bc);
+
+  matrix RIGIDITY = rigidity(Uh,Uh,tgv=tgv4bc); /*cout<<"RIGIDITY m : "<<(RIGIDITY).m<<" n : "<<(RIGIDITY).n<<endl;*/
+
+  // ** DISCRETE-PROBLEM SOLUTION: BC PENALIZATION
+
+  Uh ux,uy,vx,vy,srcx,srcy;
+
+  srcx[] = sourcefx(0,Uh,tgv=tgv4bc);
+  srcy[] = sourcefy(0,Uh,tgv=tgv4bc);
+
+  int pbsize = 2*Uh.ndof;
+  real[int] b(pbsize),U(pbsize);
+
+  b(0:Uh.ndof-1) = srcx[]; // source term without BC (before penalization)
+  b(Uh.ndof:2*Uh.ndof-1) = srcy[]; // source term without BC (before penalization)
+
+  ux = uxana; // analytical expression with BC
+  uy = uyana; // analytical expression with BC
+
+  real[int] BCux(Uh.ndof),BCuy(Uh.ndof);
+  
+  BCux = tgv4bc*ux[]; // preparing penalization
+  BCuy = tgv4bc*uy[]; // preparing penalization
+
+  real[int] BOUNDARYux = boundaryux(0,Uh);
+  real[int] BOUNDARYuy = boundaryuy(0,Uh);
+
+  b(0:Uh.ndof-1) = BOUNDARYux ? BCux : b(0:Uh.ndof-1) ; // source term with BC (penalized)
+  b(Uh.ndof:2*Uh.ndof-1) = BOUNDARYuy ? BCuy : b(Uh.ndof:2*Uh.ndof-1) ; // source term with BC (penalized)
+
+  matrix BOUNDARYPENALIZATIONux = boundaryux(Uh,Uh,tgv=tgv4bc);
+  matrix BOUNDARYPENALIZATIONuy = boundaryuy(Uh,Uh,tgv=tgv4bc);
+  matrix Auxux = RIGIDITY+BOUNDARYPENALIZATIONux; // BC penalization
+  matrix Auyuy = RIGIDITY+BOUNDARYPENALIZATIONuy; // BC penalization
+  matrix ZEROCARRE = 0*RIGIDITY;
+
+  matrix A=[[Auxux,ZEROCARRE],[ZEROCARRE,Auyuy]];
+
+  //set(A,eps=eps4solver,solver=GMRES,tgv=tgv4bc,dimKrylov=150);
+  //set(A,eps=eps4solver,solver=CG);
+  set(A,eps=eps4solver,solver=UMFPACK); 
+  //set(A,eps=eps4solver,solver=sparsesolver);
+
+  U=A^-1*b;
+  
+  ux[] = U(0:Uh.ndof-1);
+  uy[] = U(Uh.ndof:2*Uh.ndof-1);
+  
+  // ** POST-PROCESSING
+
+  plot(Th,[ux,uy],fill=1,value=true,wait=wait4plot,cmm="FEsol");
+
+  exec("mkdir "+"./Result/"+geoname+"mesh"+mymesh);
+  ofstream Uxfile ("./Result/"+geoname+"mesh"+mymesh+"/ux.txt");
+  Uxfile<<ux[];
+  ofstream Uyfile ("./Result/"+geoname+"mesh"+mymesh+"/uy.txt");
+  Uyfile<<uy[];
+  
+}
+

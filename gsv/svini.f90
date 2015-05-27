@@ -23,58 +23,43 @@ subroutine svini
     gavrilyuk = 0.
     oneoverell = 0.
     oneoverlambda = 0.
-    !-------------------------------------------------
-    Tmax = .5d0
+    ! -----------------------------------------------------------------------
+    Tmax = .1d0
     dtmin = 1.d-6
     Ntmax = 100000
     allocate( thist(3,Ntmax) )
     Ntmax_clock = 51 ; dt_clock = Tmax/(Ntmax_clock-1)
     !dt_clock = 1.d-2 ; Ntmax_clock = (Tmax/dt_clock)+1 
     CFL = .5d0
-    !-------------------------------------------------
     Nx = 10
     myiarg = iargc() ! compiler dependent ? to read arguments
     if (myiarg>0) then
       call getarg(1,Nxstring)
       read(Nxstring,*) Nx
     end if
-    Ninterf = Nx+1
-    allocate( ileftcell(Ninterf), irightcell(Ninterf), ileftinterf(Nx), irightinterf(Nx) )
-    ileftinterf = (/ ( ix , ix = 1,Nx) /)
-    irightinterf = (/ ( ix+1 , ix = 1,Nx) /)
-    ileftcell = (/ 1, ( ix , ix = 1,Nx) /) ! no-flux: homogeneous Neumann BC
-    irightcell  = (/ ( ix , ix = 1,Nx), Nx /) ! no-flux: homogeneous Neumann BC
-!     ileftcell = (/ Nx, ( ix , ix = 1,Nx) /) ! periodic BC
-!     irightcell  = (/ ( ix , ix = 1,Nx), 1 /) ! periodic BC 
-!     print *, ileftinterf
-!     print *, irightinterf
-!     do ix = 1,Nx
-!       ileftinterf(ix) = ix
-!       irightinterf(ix) = ix+1
-!     end do
     dx = 10.d0/Nx
-    allocate( cell(Nx) )
-    do ix = 1,Nx
+    allocate( cell(Nx+2) )
+    do ix = 1,Nx+2
       cell(ix)%volume = dx
     end do
-    cell(1)%center = -5. + dx/2.
-    do ix = 2,size(cell)
+    cell(1)%center = -5. - dx/2.
+    do ix = 2,Nx+1
       cell(ix)%center = cell(ix-1)%center + (cell(ix-1)%volume+cell(ix)%volume)/2.
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       if (cell(ix)%center<0.) then
 	cell(ix)%depth = 3.d0 
       else
 	cell(ix)%depth = 1.d0
       endif
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       cell(ix)%discharge = 0.d0
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       cell(ix)%velocity = 0.d0
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       if (cell(ix)%center<0.) then
 	cell(ix)%tracer = 2.d0
       else
@@ -88,7 +73,7 @@ subroutine svini
     gavrilyuk = 0.
     oneoverell = 0.
     oneoverlambda = 0.
-    !-------------------------------------------------
+    ! -----------------------------------------------------------------------
     Tmax = .5d0
     dtmin = 1.d-4
     Ntmax = 100000
@@ -96,42 +81,35 @@ subroutine svini
     Ntmax_clock = 51 ; dt_clock = Tmax/(Ntmax_clock-1)
     !dt_clock = 1.d-2 ; Ntmax_clock = (Tmax/dt_clock)+1 
     CFL = .5d0
-    !-------------------------------------------------
     Nx = 10
     myiarg = iargc() ! compiler dependent ? to read arguments
     if (myiarg>0) then
       call getarg(1,Nxstring)
       read(Nxstring,*) Nx
     end if
-    Ninterf = Nx+1
-    allocate( ileftcell(Ninterf), irightcell(Ninterf), ileftinterf(Nx), irightinterf(Nx) )
-    ileftinterf = (/ ( ix , ix = 1,Nx) /)
-    irightinterf = (/ ( ix+1 , ix = 1,Nx) /)
-    ileftcell = (/ 1, ( ix , ix = 1,Nx) /) ! no-flux: homogeneous Neumann BC
-    irightcell  = (/ ( ix , ix = 1,Nx), Nx /) ! no-flux: homogeneous Neumann BC
     dx = 10.d0/Nx
-    allocate( cell(Nx) )
-    do ix = 1,Nx
+    allocate( cell(Nx+2) )
+    do ix = 1,Nx+2
       cell(ix)%volume = dx
     end do
-    cell(1)%center = -5. + dx/2.
-    do ix = 2,size(cell)
+    cell(1)%center = -5. - dx/2.
+    do ix = 2,Nx+1
       cell(ix)%center = cell(ix-1)%center + (cell(ix-1)%volume+cell(ix)%volume)/2.
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       if (cell(ix)%center<0.) then
 	cell(ix)%depth = 3.d0 
       else
 	cell(ix)%depth = 0.d0
       endif
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       cell(ix)%discharge = 0d0
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       cell(ix)%velocity = 0d0
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       if (cell(ix)%center<0.) then
 	cell(ix)%tracer = 2.d0
       else
@@ -145,7 +123,7 @@ subroutine svini
     theta = 0.
     oneoverell = 0.
     oneoverlambda = 0.
-    !-------------------------------------------------
+    ! -----------------------------------------------------------------------
     Tmax = .5d0
     dtmin = 1.d-4
     Ntmax = 100000
@@ -153,42 +131,35 @@ subroutine svini
     Ntmax_clock = 51 ; dt_clock = Tmax/(Ntmax_clock-1)
     !dt_clock = 1.d-2 ; Ntmax_clock = (Tmax/dt_clock)+1 
     CFL = .5d0
-    !-------------------------------------------------
     Nx = 10
     myiarg = iargc() ! compiler dependent ? to read arguments
     if (myiarg>0) then
       call getarg(1,Nxstring)
       read(Nxstring,*) Nx
     end if
-    Ninterf = Nx+1
-    allocate( ileftcell(Ninterf), irightcell(Ninterf), ileftinterf(Nx), irightinterf(Nx) )
-    ileftinterf = (/ ( ix , ix = 1,Nx) /)
-    irightinterf = (/ ( ix+1 , ix = 1,Nx) /)
-    ileftcell = (/ 1, ( ix , ix = 1,Nx) /) ! no-flux: homogeneous Neumann BC
-    irightcell  = (/ ( ix , ix = 1,Nx), Nx /) ! no-flux: homogeneous Neumann BC
     dx = 10.d0/Nx
-    allocate( cell(Nx) )
-    do ix = 1,Nx
+    allocate( cell(Nx+2) )
+    do ix = 1,Nx+2
       cell(ix)%volume = dx
     end do
-    cell(1)%center = -5. + dx/2.
-    do ix = 2,size(cell)
+    cell(1)%center = -5. - dx/2.
+    do ix = 2,Nx+1
       cell(ix)%center = cell(ix-1)%center + (cell(ix-1)%volume+cell(ix)%volume)/2.
     end do
-    do ix = 1,Nx
-      if ((cell(ix)%center<=1.).AND.(cell(ix)%center>=-1.)) then
+    do ix = 1,Nx+2
+      if ((cell(ix)%center<1.).AND.(cell(ix)%center>-1.)) then
 	cell(ix)%depth = 3.d0 
       else
 	cell(ix)%depth = 0.d0
       endif
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       cell(ix)%discharge = 0d0
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       cell(ix)%velocity = 0d0
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       if ((cell(ix)%center<.5).AND.(cell(ix)%center>-.5)) then
 	cell(ix)%tracer = 2.d0
       else
@@ -202,7 +173,7 @@ subroutine svini
     theta = 0.
     oneoverell = 0.
     oneoverlambda = 0.
-    !-------------------------------------------------
+    ! -----------------------------------------------------------------------
     Tmax = .5d0
     dtmin = 1.d-4
     Ntmax = 100000
@@ -210,42 +181,35 @@ subroutine svini
     Ntmax_clock = 51 ; dt_clock = Tmax/(Ntmax_clock-1)
     !dt_clock = 1.d-2 ; Ntmax_clock = (Tmax/dt_clock)+1 
     CFL = .5d0
-    !-------------------------------------------------
     Nx = 10
     myiarg = iargc() ! compiler dependent ? to read arguments
     if (myiarg>0) then
       call getarg(1,Nxstring)
       read(Nxstring,*) Nx
     end if
-    Ninterf = Nx+1
-    allocate( ileftcell(Ninterf), irightcell(Ninterf), ileftinterf(Nx), irightinterf(Nx) )
-    ileftinterf = (/ ( ix , ix = 1,Nx) /)
-    irightinterf = (/ ( ix+1 , ix = 1,Nx) /)
-    ileftcell = (/ 1, ( ix , ix = 1,Nx) /) ! no-flux: homogeneous Neumann BC
-    irightcell  = (/ ( ix , ix = 1,Nx), Nx /) ! no-flux: homogeneous Neumann BC
     dx = 10.d0/Nx
-    allocate( cell(Nx) )
-    do ix = 1,Nx
+    allocate( cell(Nx+2) )
+    do ix = 1,Nx+2
       cell(ix)%volume = dx
     end do
-    cell(1)%center = -5. + dx/2.
-    do ix = 2,size(cell)
+    cell(1)%center = -5. - dx/2.
+    do ix = 2,Nx+1
       cell(ix)%center = cell(ix-1)%center + (cell(ix-1)%volume+cell(ix)%volume)/2.
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       if ((cell(ix)%center>1.).OR.(cell(ix)%center<-1.)) then
 	cell(ix)%depth = 5.d0 
       else
 	cell(ix)%depth = 0.d0
       endif
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       cell(ix)%discharge = 0d0
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       cell(ix)%velocity = 0d0
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       if ((cell(ix)%center>2.).OR.(cell(ix)%center<-2.)) then
 	cell(ix)%tracer = 2.d0
       else
@@ -259,7 +223,7 @@ subroutine svini
     theta = 0.
     oneoverell = 0.
     oneoverlambda = 0.
-    !-------------------------------------------------
+    ! -----------------------------------------------------------------------
     Tmax = .5d0
     dtmin = 1.d-4
     Ntmax = 100000
@@ -267,29 +231,22 @@ subroutine svini
     Ntmax_clock = 51 ; dt_clock = Tmax/(Ntmax_clock-1)
     !dt_clock = 1.d-2 ; Ntmax_clock = (Tmax/dt_clock)+1 
     CFL = .5d0
-    !-------------------------------------------------
     Nx = 10
     myiarg = iargc() ! compiler dependent ? to read arguments
     if (myiarg>0) then
       call getarg(1,Nxstring)
       read(Nxstring,*) Nx
     end if
-    Ninterf = Nx+1
-    allocate( ileftcell(Ninterf), irightcell(Ninterf), ileftinterf(Nx), irightinterf(Nx) )
-    ileftinterf = (/ ( ix , ix = 1,Nx) /)
-    irightinterf = (/ ( ix+1 , ix = 1,Nx) /)
-    ileftcell = (/ 1, ( ix , ix = 1,Nx) /) ! no-flux: homogeneous Neumann BC
-    irightcell  = (/ ( ix , ix = 1,Nx), Nx /) ! no-flux: homogeneous Neumann BC
     dx = 10.d0/Nx
-    allocate( cell(Nx) )
-    do ix = 1,Nx
+    allocate( cell(Nx+2) )
+    do ix = 1,Nx+2
       cell(ix)%volume = dx
     end do
-    cell(1)%center = -5. + dx/2.
-    do ix = 2,size(cell)
+    cell(1)%center = -5. - dx/2.
+    do ix = 2,Nx+1
       cell(ix)%center = cell(ix-1)%center + (cell(ix-1)%volume+cell(ix)%volume)/2.
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       if ((cell(ix)%center<1.).AND.(cell(ix)%center>-1.)) then
 	cell(ix)%depth = 2.d0 
       else if (cell(ix)%center>1.) then
@@ -298,13 +255,13 @@ subroutine svini
 	cell(ix)%depth = 10.d0
       endif
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       cell(ix)%discharge = 0d0
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       cell(ix)%velocity = 0d0
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       if ((cell(ix)%center>-1.).AND.(cell(ix)%center<1.)) then
 	cell(ix)%tracer = 1.d0
       else
@@ -318,7 +275,7 @@ subroutine svini
     theta = 0.
     oneoverell = 0.
     oneoverlambda = 0.
-    !-------------------------------------------------
+    ! -----------------------------------------------------------------------
     Tmax = .5d0
     dtmin = 1.d-4
     Ntmax = 100000
@@ -326,29 +283,22 @@ subroutine svini
     Ntmax_clock = 51 ; dt_clock = Tmax/(Ntmax_clock-1)
     !dt_clock = 1.d-2 ; Ntmax_clock = (Tmax/dt_clock)+1 
     CFL = .5d0
-    !-------------------------------------------------
     Nx = 10
     myiarg = iargc() ! compiler dependent ? to read arguments
     if (myiarg>0) then
       call getarg(1,Nxstring)
       read(Nxstring,*) Nx
     end if
-    Ninterf = Nx+1
-    allocate( ileftcell(Ninterf), irightcell(Ninterf), ileftinterf(Nx), irightinterf(Nx) )
-    ileftinterf = (/ ( ix , ix = 1,Nx) /)
-    irightinterf = (/ ( ix+1 , ix = 1,Nx) /)
-    ileftcell = (/ 1, ( ix , ix = 1,Nx) /) ! no-flux: homogeneous Neumann BC
-    irightcell  = (/ ( ix , ix = 1,Nx), Nx /) ! no-flux: homogeneous Neumann BC
     dx = 10.d0/Nx
-    allocate( cell(Nx) )
-    do ix = 1,Nx
+    allocate( cell(Nx+2) )
+    do ix = 1,Nx+2
       cell(ix)%volume = dx
     end do
-    cell(1)%center = -5. + dx/2.
-    do ix = 2,size(cell)
+    cell(1)%center = -5. - dx/2.
+    do ix = 2,Nx+1
       cell(ix)%center = cell(ix-1)%center + (cell(ix-1)%volume+cell(ix)%volume)/2.
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       if ((cell(ix)%center<1.).AND.(cell(ix)%center>-1.)) then
 	cell(ix)%depth = 1.d0 + sin(kwave*Pi*(cell(ix)%center+1.))
       else if (cell(ix)%center>1.) then
@@ -357,13 +307,13 @@ subroutine svini
 	cell(ix)%depth = 1.d0
       endif
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       cell(ix)%discharge = 0d0
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       cell(ix)%velocity = 0d0
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       if ((cell(ix)%center>-1.).AND.(cell(ix)%center<1.)) then
 	cell(ix)%tracer = 1.d0
       else
@@ -377,7 +327,7 @@ subroutine svini
     theta = 0.
     oneoverell = 0.
     oneoverlambda = 0.
-    !-------------------------------------------------
+    ! -----------------------------------------------------------------------
     Tmax = .5d0
     dtmin = 1.d-4
     Ntmax = 100000
@@ -385,52 +335,45 @@ subroutine svini
     Ntmax_clock = 51 ; dt_clock = Tmax/(Ntmax_clock-1)
     !dt_clock = 1.d-2 ; Ntmax_clock = (Tmax/dt_clock)+1 
     CFL = .5d0
-    !-------------------------------------------------
     Nx = 10
     myiarg = iargc() ! compiler dependent ? to read arguments
     if (myiarg>0) then
       call getarg(1,Nxstring)
       read(Nxstring,*) Nx
     end if
-    Ninterf = Nx+1
-    allocate( ileftcell(Ninterf), irightcell(Ninterf), ileftinterf(Nx), irightinterf(Nx) )
-    ileftinterf = (/ ( ix , ix = 1,Nx) /)
-    irightinterf = (/ ( ix+1 , ix = 1,Nx) /)
-    ileftcell = (/ 1, ( ix , ix = 1,Nx) /) ! no-flux: homogeneous Neumann BC
-    irightcell  = (/ ( ix , ix = 1,Nx), Nx /) ! no-flux: homogeneous Neumann BC
     dx = 10.d0/Nx
-    allocate( cell(Nx) )
-    do ix = 1,Nx
+    allocate( cell(Nx+2) )
+    do ix = 1,Nx+2
       cell(ix)%volume = dx
     end do
-    cell(1)%center = -5. + dx/2.
-    do ix = 2,size(cell)
+    cell(1)%center = -5. - dx/2.
+    do ix = 2,Nx+1
       cell(ix)%center = cell(ix-1)%center + (cell(ix-1)%volume+cell(ix)%volume)/2.
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       if (cell(ix)%center<0.) then
 	cell(ix)%depth = 3.d0 
       else
 	cell(ix)%depth = 1.d0
       endif
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       cell(ix)%discharge = 0d0
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       cell(ix)%velocity = 0d0
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       if (cell(ix)%center<0.) then
 	cell(ix)%tracer = 2.d0
       else
 	cell(ix)%tracer = 1.d0
       endif
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       cell(ix)%sigmaxx = 1.d0
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       cell(ix)%sigmazz = 1.d0
     end do
   !--------------------------------------------------------------------------
@@ -440,7 +383,7 @@ subroutine svini
     theta = 0.
     oneoverell = 0.
     oneoverlambda = 0.
-    !-------------------------------------------------
+    ! -----------------------------------------------------------------------
     Tmax = .5d0
     dtmin = 1.d-6
     Ntmax = 100000
@@ -450,42 +393,35 @@ subroutine svini
     Ntmax_clock = 51 ; dt_clock = Tmax/(Ntmax_clock-1)
     !dt_clock = 1.d-2 ; Ntmax_clock = (Tmax/dt_clock)+1 
     CFL = .5d0
-    !-------------------------------------------------
     Nx = 10
     myiarg = iargc() ! compiler dependent ? to read arguments
     if (myiarg>0) then
       call getarg(1,Nxstring)
       read(Nxstring,*) Nx
     end if
-    Ninterf = Nx+1
-    allocate( ileftcell(Ninterf), irightcell(Ninterf), ileftinterf(Nx), irightinterf(Nx) )
-    ileftinterf = (/ ( ix , ix = 1,Nx) /)
-    irightinterf = (/ ( ix+1 , ix = 1,Nx) /)
-    ileftcell = (/ 1, ( ix , ix = 1,Nx) /) ! no-flux: homogeneous Neumann BC
-    irightcell  = (/ ( ix , ix = 1,Nx), Nx /) ! no-flux: homogeneous Neumann BC
     dx = 10.d0/Nx
-    allocate( cell(Nx) )
-    do ix = 1,Nx
+    allocate( cell(Nx+2) )
+    do ix = 1,Nx+2
       cell(ix)%volume = dx
     end do
-    cell(1)%center = -5. + dx/2.
-    do ix = 2,size(cell)
+    cell(1)%center = -5. - dx/2.
+    do ix = 2,Nx+1
       cell(ix)%center = cell(ix-1)%center + (cell(ix-1)%volume+cell(ix)%volume)/2.
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       if (cell(ix)%center<0.) then
         cell(ix)%depth = 3.d0 
       else
         cell(ix)%depth = .000d0
       endif
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       cell(ix)%discharge = 0d0
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       cell(ix)%velocity = 0d0
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       if (cell(ix)%center<0.) then
         cell(ix)%tracer = 2.d0
         cell(ix)%sigmaxx = 1.d0
@@ -502,8 +438,8 @@ subroutine svini
     gavrilyuk = 0.
     oneoverell = 0.
     oneoverlambda = 10.
-    !-------------------------------------------------
     theta = 0.
+    ! -----------------------------------------------------------------------
     Tmax = .5d0
     dtmin = 1.d-6
     Ntmax = 100000
@@ -511,42 +447,35 @@ subroutine svini
     Ntmax_clock = 51 ; dt_clock = Tmax/(Ntmax_clock-1)
     !dt_clock = 1.d-2 ; Ntmax_clock = (Tmax/dt_clock)+1 
     CFL = .5d0
-    !-------------------------------------------------
     Nx = 10
     myiarg = iargc() ! compiler dependent ? to read arguments
     if (myiarg>0) then
       call getarg(1,Nxstring)
       read(Nxstring,*) Nx
     end if
-    Ninterf = Nx+1
-    allocate( ileftcell(Ninterf), irightcell(Ninterf), ileftinterf(Nx), irightinterf(Nx) )
-    ileftinterf = (/ ( ix , ix = 1,Nx) /)
-    irightinterf = (/ ( ix+1 , ix = 1,Nx) /)
-    ileftcell = (/ 1, ( ix , ix = 1,Nx) /) ! no-flux: homogeneous Neumann BC
-    irightcell  = (/ ( ix , ix = 1,Nx), Nx /) ! no-flux: homogeneous Neumann BC
     dx = 10.d0/Nx
-    allocate( cell(Nx) )
-    do ix = 1,Nx
+    allocate( cell(Nx+2) )
+    do ix = 1,Nx+2
       cell(ix)%volume = dx
     end do
-    cell(1)%center = -5. + dx/2.
-    do ix = 2,size(cell)
+    cell(1)%center = -5. - dx/2.
+    do ix = 2,Nx+1
       cell(ix)%center = cell(ix-1)%center + (cell(ix-1)%volume+cell(ix)%volume)/2.
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       if (cell(ix)%center<0.) then
         cell(ix)%depth = 3.d0 
       else
         cell(ix)%depth = 1.d0*0.
       endif
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       cell(ix)%discharge = 0d0
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       cell(ix)%velocity = 0d0
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       if (cell(ix)%center<0.) then
         cell(ix)%tracer = 2.d0
         cell(ix)%sigmaxx = 1.d0
@@ -564,7 +493,7 @@ subroutine svini
     elasticmodulus = 0.5
     oneoverell = 1./10.
     oneoverlambda = 0.5
-    !-------------------------------------------------
+    ! -----------------------------------------------------------------------
     Tmax = .5d0
     dtmin = 1.d-6
     Ntmax = 100000
@@ -572,42 +501,35 @@ subroutine svini
     Ntmax_clock = 51 ; dt_clock = Tmax/(Ntmax_clock-1)
     !dt_clock = 1.d-2 ; Ntmax_clock = (Tmax/dt_clock)+1 
     CFL = .5d0
-    !-------------------------------------------------
     Nx = 10
     myiarg = iargc() ! compiler dependent ? to read arguments
     if (myiarg>0) then
       call getarg(1,Nxstring)
       read(Nxstring,*) Nx
     end if
-    Ninterf = Nx+1
-    allocate( ileftcell(Ninterf), irightcell(Ninterf), ileftinterf(Nx), irightinterf(Nx) )
-    ileftinterf = (/ ( ix , ix = 1,Nx) /)
-    irightinterf = (/ ( ix+1 , ix = 1,Nx) /)
-    ileftcell = (/ 1, ( ix , ix = 1,Nx) /) ! no-flux: homogeneous Neumann BC
-    irightcell  = (/ ( ix , ix = 1,Nx), Nx /) ! no-flux: homogeneous Neumann BC
     dx = 10.d0/Nx
-    allocate( cell(Nx) )
-    do ix = 1,Nx
+    allocate( cell(Nx+2) )
+    do ix = 1,Nx+2
       cell(ix)%volume = dx
     end do
-    cell(1)%center = -5. + dx/2.
-    do ix = 2,size(cell)
+    cell(1)%center = -5. - dx/2.
+    do ix = 2,Nx+1
       cell(ix)%center = cell(ix-1)%center + (cell(ix-1)%volume+cell(ix)%volume)/2.
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       if (cell(ix)%center<0.) then
         cell(ix)%depth = 3.d0 
       else
         cell(ix)%depth = 0.00000d0
       endif
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       cell(ix)%discharge = 0d0
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       cell(ix)%velocity = 0d0
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       if (cell(ix)%center<0.) then
         cell(ix)%tracer = 2.d0
         cell(ix)%sigmaxx = 1.d0
@@ -629,7 +551,7 @@ subroutine svini
     elasticmodulus = 0.5
     oneoverell = 1./10.
     oneoverlambda = 0.5
-    !-------------------------------------------------
+    ! -----------------------------------------------------------------------
     Tmax = 1.d0
     dtmin = 1.d-8
     Ntmax = 1000000
@@ -637,42 +559,35 @@ subroutine svini
     Ntmax_clock = 51 ; dt_clock = Tmax/(Ntmax_clock-1)
     !dt_clock = 1.d-2 ; Ntmax_clock = (Tmax/dt_clock)+1 
     CFL = .5d0
-    !-------------------------------------------------
     Nx = 10
     myiarg = iargc() ! compiler dependent ? to read arguments
     if (myiarg>0) then
       call getarg(1,Nxstring)
       read(Nxstring,*) Nx
     end if
-    Ninterf = Nx+1
-    allocate( ileftcell(Ninterf), irightcell(Ninterf), ileftinterf(Nx), irightinterf(Nx) )
-    ileftinterf = (/ ( ix , ix = 1,Nx) /)
-    irightinterf = (/ ( ix+1 , ix = 1,Nx) /)
-    ileftcell = (/ 1, ( ix , ix = 1,Nx) /) ! no-flux: homogeneous Neumann BC
-    irightcell  = (/ ( ix , ix = 1,Nx), Nx /) ! no-flux: homogeneous Neumann BC
     dx = 10.d0/Nx
-    allocate( cell(Nx) )
-    do ix = 1,Nx
+    allocate( cell(Nx+2) )
+    do ix = 1,Nx+2
       cell(ix)%volume = dx
     end do
-    cell(1)%center = -5. + dx/2.
-    do ix = 2,size(cell)
+    cell(1)%center = -5. - dx/2.
+    do ix = 2,Nx+1
       cell(ix)%center = cell(ix-1)%center + (cell(ix-1)%volume+cell(ix)%volume)/2.
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       if (cell(ix)%center<0.) then
         cell(ix)%depth = 3.d0 
       else
         cell(ix)%depth = 0.00000d0
       endif
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       cell(ix)%discharge = 0d0
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       cell(ix)%velocity = 0d0
     end do
-    do ix = 1,Nx
+    do ix = 1,Nx+2
       if (cell(ix)%center<0.) then
         cell(ix)%tracer = 2.d0
         cell(ix)%sigmaxx = 1.d0
