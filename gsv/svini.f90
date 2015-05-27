@@ -23,6 +23,7 @@ subroutine svini
     gavrilyuk = 0.
     oneoverell = 0.
     oneoverlambda = 0.
+    ! -----------------------------------------------------------------------
     Tmax = .1d0
     dtmin = 1.d-6
     Ntmax = 100000
@@ -72,6 +73,7 @@ subroutine svini
     gavrilyuk = 0.
     oneoverell = 0.
     oneoverlambda = 0.
+    ! -----------------------------------------------------------------------
     Tmax = .5d0
     dtmin = 1.d-4
     Ntmax = 100000
@@ -121,6 +123,7 @@ subroutine svini
     theta = 0.
     oneoverell = 0.
     oneoverlambda = 0.
+    ! -----------------------------------------------------------------------
     Tmax = .5d0
     dtmin = 1.d-4
     Ntmax = 100000
@@ -170,6 +173,7 @@ subroutine svini
     theta = 0.
     oneoverell = 0.
     oneoverlambda = 0.
+    ! -----------------------------------------------------------------------
     Tmax = .5d0
     dtmin = 1.d-4
     Ntmax = 100000
@@ -219,6 +223,7 @@ subroutine svini
     theta = 0.
     oneoverell = 0.
     oneoverlambda = 0.
+    ! -----------------------------------------------------------------------
     Tmax = .5d0
     dtmin = 1.d-4
     Ntmax = 100000
@@ -270,6 +275,7 @@ subroutine svini
     theta = 0.
     oneoverell = 0.
     oneoverlambda = 0.
+    ! -----------------------------------------------------------------------
     Tmax = .5d0
     dtmin = 1.d-4
     Ntmax = 100000
@@ -321,6 +327,7 @@ subroutine svini
     theta = 0.
     oneoverell = 0.
     oneoverlambda = 0.
+    ! -----------------------------------------------------------------------
     Tmax = .5d0
     dtmin = 1.d-4
     Ntmax = 100000
@@ -376,6 +383,7 @@ subroutine svini
     theta = 0.
     oneoverell = 0.
     oneoverlambda = 0.
+    ! -----------------------------------------------------------------------
     Tmax = .5d0
     dtmin = 1.d-6
     Ntmax = 100000
@@ -431,6 +439,7 @@ subroutine svini
     oneoverell = 0.
     oneoverlambda = 10.
     theta = 0.
+    ! -----------------------------------------------------------------------
     Tmax = .5d0
     dtmin = 1.d-6
     Ntmax = 100000
@@ -484,6 +493,7 @@ subroutine svini
     elasticmodulus = 0.5
     oneoverell = 1./10.
     oneoverlambda = 0.5
+    ! -----------------------------------------------------------------------
     Tmax = .5d0
     dtmin = 1.d-6
     Ntmax = 100000
@@ -541,6 +551,7 @@ subroutine svini
     elasticmodulus = 0.5
     oneoverell = 1./10.
     oneoverlambda = 0.5
+    ! -----------------------------------------------------------------------
     Tmax = 1.d0
     dtmin = 1.d-8
     Ntmax = 1000000

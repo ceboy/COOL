@@ -38,13 +38,14 @@ program sv
       type (t_cell), dimension(:) :: cell 
     end subroutine writeout
   end interface
-  ! Initialization ----------------------------------------------------------------
+  ! Initialization : myzeromachine -------------------------------------------------
   myzeromachine = 1.
   do while(1./=1.+myzeromachine)
     myzeromachine = myzeromachine/2.
   end do
   print '("Zero machine = ",e12.6)', myzeromachine
   print *, 'Initialization'
+  ! Initialization : svini ---------------------------------------------------------
   call svini ! <<<<<<<<<<<<<<<<<<<<<<<< INITIALIZE THE (GLOBAL) VARIABLES OF m_data
   print *, 'The step size in space is ', dx
   print *, 'Post-processing every ', dt_clock
@@ -62,7 +63,7 @@ program sv
   ! >>> ABOVE: to be improved (writeout dependency on unit numbers)
   ! Post-processing and boundary conditions applied to copy interf -------------------
   allocate( interf(Nx+2) )
-  interf = cell
+  interf = cell ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% COPY NOT VERY EFFICIENT
   interf(1) = interf(2) ! no-flux
   interf(Nx+2) = interf(Nx+1) ! no-flux
   stencil = 6 ! number of cells shown on left and right boundaries <= (Nx+2)/2

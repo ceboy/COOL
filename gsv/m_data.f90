@@ -2,13 +2,15 @@ module m_data
   use m_cell
   implicit none
   integer :: testcase = 11
-  double precision :: elasticmodulus
-  double precision :: oneoverell
-  double precision :: oneoverlambda
-  double precision :: gavrilyuk
-  double precision :: theta
-  double precision :: Cfriction_u
-  double precision :: Cfriction_Phi
+  !--------------------------------------------------------------------------
+  ! Physical variables
+  double precision :: elasticmodulus ! G>0 in viscoelasticity
+  double precision :: oneoverell ! 1/ell>0 in viscoelasticity
+  double precision :: oneoverlambda ! 1/lambda>0 in viscoelasticity
+  double precision :: gavrilyuk ! 1 or 0: uses Gavrilyuk entrsophy variables or not
+  double precision :: theta ! slope (gravity inclination in degrees: -90<theta<90)
+  double precision :: Cfriction_u ! Navier friction coefficient
+  double precision :: Cfriction_Phi ! microenstrophy friction coefficient in Gavrilyuk model
   !--------------------------------------------------------------------------
   integer :: I0 ! time-splitting
   integer :: I1 ! three-point numerical flux (order 1)
