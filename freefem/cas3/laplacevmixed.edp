@@ -1,0 +1,167 @@
+// PROBLEM PARAMETERS
+
+string geoname = "geo3";
+int Nmesh = 4;
+real[int] Tmesh(Nmesh); 
+//Tmesh(0) = 1;
+for(int i=0; i<Nmesh; i++) Tmesh(i) = i+1;
+
+// ** analytical expression with correct BC for geo1 (upper-right square) 
+// func uxana = sin(y*pi)*(1+cos(x*pi))/2.; 
+// func uyana = -sin(x*pi)*(1+cos(y*pi))/2.;
+// func fx = pi^2*sin(y*pi)*(1./2.+cos(x*pi));
+// func fy = -pi^2*sin(x*pi)*(1./2.+cos(y*pi));
+//          |\
+//     ____ | |
+//    /    \|/     1
+// ------------------>
+//   -1    /|\____/
+//        | |
+//         \|
+// ** analytical expression with correct BC for geo3
+func uxana = sin(x+y); 
+func uyana = -sin(x+y);
+func fx = 2*sin(x+y);
+func fy = -2*sin(x+y);
+real mycoef = .01;
+
+real tgv4bc = 1.e30; // penalization parameter
+
+macro mysolver CG // UMFPACK // sparsesolver // GMRES //
+
+real eps4solver = 1.e-10;
+
+int wait4plot = 1;
+
+verbosity = 2;
+
+///////////////////////////////////////////////////////////////////////////////////
+// MACROS
+///////////////////////////////////////////////////////////////////////////////////
+
+mesh Th;
+
+varf sourcefx(u,v) = int2d(Th)(fx*v+mycoef*uxana*v);
+
+varf sourcefy(u,v) = int2d(Th)(fy*v+mycoef*uyana*v);
+
+varf mass(u,v) = int2d(Th)(u*v);
+
+varf rigidity(u,v) = int2d(Th)(dx(u)*dx(v)+dy(u)*dy(v));
+
+varf dirichletux(u,v) = on(1,3,u=1);
+
+varf dirichletuy(u,v) = on(1,3,u=1);
+
+varf mixeduxpuy(u,v) = on(2,u=1);
+
+varf neumannfx(u,v) = int1d(Th,1,3)(-cos(x+y)*v);
+
+varf neumannfy(u,v) = int1d(Th,1,3)(cos(x+y)*v);
+
+varf mixedfymfx(u,v) = int1d(Th,2)(-2*cos(x+y)*v);
+
+///////////////////////////////////////////////////////////////////////////////////
+// COMPUTATIONS (MANY MESHES)
+///////////////////////////////////////////////////////////////////////////////////
+
+int mymesh;
+for (mymesh = 1; mymesh <= Nmesh; mymesh++)
+{
+  
+  Th = readmesh("./Mesh/"+geoname+"mesh"+mymesh+".msh");
+
+  // ** FINITE-ELEMENT SPACES
+
+  fespace Uh(Th,P1);
+
+  // ** DISCRETE-PROBLEM BUILDING BLOCKS (MATRICES, VECTORS) & ASSEMBLING
+
+  matrix MASS = mass(Uh,Uh,tgv=tgv4bc);
+
+  matrix RIGIDITY = rigidity(Uh,Uh,tgv=tgv4bc); /*cout<<"RIGIDITY m : "<<(RIGIDITY).m<<" n : "<<(RIGIDITY).n<<endl;*/
+  
+  matrix DIRICHLETPENALIZATIONux = dirichletux(Uh,Uh,tgv=tgv4bc);
+  
+  matrix DIRICHLETPENALIZATIONuy = dirichletuy(Uh,Uh,tgv=tgv4bc);
+  
+  matrix MIXED = mixeduxpuy(Uh,Uh,tgv=tgv4bc);
+  
+  // ** DISCRETE-PROBLEM SOLUTION: BC PENALIZATION
+
+  Uh ux,uy,vx,vy,srcx,srcy;
+
+  srcx[] = sourcefx(0,Uh,tgv=tgv4bc);
+  srcy[] = sourcefy(0,Uh,tgv=tgv4bc);
+  
+  srcx[] += neumannfx(0,Uh,tgv=tgv4bc);
+  srcy[] += neumannfy(0,Uh,tgv=tgv4bc);
+  
+  matrix Auxux = RIGIDITY;
+  matrix Auyuy = RIGIDITY;
+  matrix Auyux = MIXED*Auxux;
+  matrix Auxuy = MIXED*Auyuy;
+  
+//   Auxux = Auxux+mycoef*MASS; // invertibility
+//   Auyuy = Auyuy+mycoef*MASS; // invertibility
+  
+  int pbsize = 2*Uh.ndof;
+  real[int] b(pbsize),U(pbsize);
+
+  b(0:Uh.ndof-1) = srcx[]; // source term without BC (before penalization)
+  b(Uh.ndof:2*Uh.ndof-1) = srcy[]; // source term without BC (before penalization)
+
+  real[int] BCux(Uh.ndof),BCuy(Uh.ndof);
+  real[int] DIRICHLETux(Uh.ndof),DIRICHLETuy(Uh.ndof);
+    
+  ux = uxana; // analytical expression with BC
+  uy = uyana; // analytical expression with BC
+
+  BCux = tgv4bc*ux[]; // preparing penalization
+  BCuy = tgv4bc*uy[]; // preparing penalization
+
+  DIRICHLETux = dirichletux(0,Uh);
+  DIRICHLETuy = dirichletuy(0,Uh);
+
+  b(0:Uh.ndof-1) = DIRICHLETux ? BCux : b(0:Uh.ndof-1) ; // source term with BC (penalized)
+  b(Uh.ndof:2*Uh.ndof-1) = DIRICHLETuy ? BCuy : b(Uh.ndof:2*Uh.ndof-1) ; // source term with BC (penalized)
+
+  Auxux = Auxux+DIRICHLETPENALIZATIONux; // BC penalization
+  Auyuy = Auyuy+DIRICHLETPENALIZATIONuy; // BC penalization
+  
+  real[int] BCuxpuy(Uh.ndof),MIXEDuxpuy(Uh.ndof);
+  
+  ux = uxana+uyana; // analytical expression with BC
+  BCuxpuy = tgv4bc*ux[]; // preparing penalization
+  MIXEDuxpuy = mixeduxpuy(0,Uh);
+  b(0:Uh.ndof-1) = MIXEDuxpuy ? BCuxpuy : b(0:Uh.ndof-1) ; // source term with BC (penalized)
+  Auxuy = tgv4bc*Auxuy; // mixed penalization
+  
+  Auyux = -Auyux;
+  srcy[] += mixedfymfx(0,Uh,tgv=tgv4bc);
+  
+  matrix A=[[Auxux,Auxuy],[Auyux,Auyuy]];  
+
+  //set(A,eps=eps4solver,solver=GMRES,tgv=tgv4bc,dimKrylov=150);
+  //set(A,eps=eps4solver,solver=CG);
+  //set(A,eps=eps4solver,solver=UMFPACK); 
+  //set(A,eps=eps4solver,solver=sparsesolver);
+  set(A,solver=mysolver,eps=eps4solver);
+  
+  U=A^-1*b;
+  
+  ux[] = U(0:Uh.ndof-1);
+  uy[] = U(Uh.ndof:2*Uh.ndof-1);
+  
+  // ** POST-PROCESSING
+
+  plot(Th,[ux,uy],fill=1,value=true,wait=wait4plot,cmm="FEsol");
+
+  exec("mkdir "+"./Result/"+geoname+"mesh"+mymesh);
+  ofstream Uxfile ("./Result/"+geoname+"mesh"+mymesh+"/ux.txt");
+  Uxfile<<ux[];
+  ofstream Uyfile ("./Result/"+geoname+"mesh"+mymesh+"/uy.txt");
+  Uyfile<<uy[];
+  
+}
+

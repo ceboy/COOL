@@ -1,0 +1,24 @@
+// MESHES
+
+int mywait = 1;
+string myname = "geo3";
+
+border C1(t=0,1){x=t;y=0;label=1;}
+border C2(t=0,1){x=1-t;y=t;label=2;}
+border C3(t=0,1){x=0;y=1-t;label=3;}
+
+mesh Th = buildmesh(C1(10)+C2(10)+C3(10)); plot(Th,wait=mywait);
+
+for(int finesse=2; finesse<=4; finesse++)
+{
+//mesh Th = buildmesh(C3(10*finesse)+C1(10*finesse)+C2(10*finesse));
+
+Th=trunc(Th,1,split=2);
+
+// BEWARE: POINTS LABELS (AMONG ADJACENT EDGES) ARE THAT OF THE LAST CURVES
+// BEWARE: ELEMENTS WITH 2 EDGES ON BOUNDARY FOR MIXED DIRICHLET-NEUMANN BC
+
+savemesh(Th,myname+"mesh"+finesse+".msh"); plot(Th,wait=mywait);
+}
+
+

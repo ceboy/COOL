@@ -1,0 +1,106 @@
+///////////////////////////////////////////////////////////////////////////////////
+// INPUT PARAMETERS FOR potentiel.edp
+///////////////////////////////////////////////////////////////////////////////////
+
+// ** Geometry: choose a family of meshes
+int nblabel; // boundary edges are labelled from 1 to nblabel
+//
+string geoname = "geo1"; nblabel = 4; // uniform square (0,1)^2
+// string geoname = "geo1bis"; nblabel = 4; // uniform square
+//
+int Nmesh = 4;
+real[int] Tmesh(Nmesh);
+//Tmesh(0) = 1;
+for(int i=0; i<Nmesh; i++) Tmesh(i) = i+1;
+
+// ** BVP type: choose condition for each boundary (label) 0=potential 1=flux 2=freesurface 3=periodic
+int[int]tlabel(nblabel+1);
+if(nblabel>=1) tlabel[1] = 1;
+if(nblabel>=2) tlabel[2] = 0;
+if(nblabel>=3) tlabel[3] = 2;
+if(nblabel>=4) tlabel[4] = 0;
+matrix ROTATION;
+int[int] Iloc = [0,0,1,1];
+int[int] Jloc = [0,1,0,1];
+real[int] Cloc = [1.,0.,0.,1.];
+ROTATION = [Iloc,Jloc,Cloc]; // ** to avoid Morse storage cleaning of zeros
+real[int] TRANSLATION = [1,0]; // ** be careful to mesh geometric compatibility with 3 !
+
+// ** Data: choose an analytical solution to provide volume source, edge source, edge traces for BC
+real gravity = 9.81;
+/*
+func real etaana(real & t,real & x){
+  return 0.;
+}
+func real phiana(real & t, real & x, real & y){
+  return 0.;
+}
+func real dxphiana(real & t, real & x, real & y){
+  return 0.;
+}
+func real dyphiana(real & t, real & x, real & y){
+  return 0.;
+}
+func real mddxxmddzzphiana(real & t, real & x, real & y){
+  return 0.;
+}
+func real dpdt(real & t,real & x){
+  return (x>.6)*(x<.8)*sin(2*pi*5*t);
+}
+*/
+real hwave = 1; // water depth: equal to the geometry depth here !!
+
+// !! next we use the variable change z+hwave=y*hwave and the equation is dxx(phi)+dyy(phi)/hwave^2=0 !!
+real kwave = 1; // wave number << TO BE CHOSEN !!
+//real Lwave = 1./kwave; // wave period in space
+real wwave = sqrt(gravity*kwave*tanh(2*pi*kwave*hwave)/(2*pi)); // wave frequency
+real Hwave = 0.05; // wave height (= cambrure dans un domaine de longueur 1)
+// <= .01*g/wwave^2 and <= hwave + .001*g/wwave^2
+cout << "Cambrure = " << Hwave/hwave;
+cout << " Stokes " << .1/wwave^2;
+cout << " cnoidal " << hwave + .01/wwave^2 << endl;
+func real etaana(real & t,real & x){
+  return (Hwave/2)*cos(2.*pi*(kwave*x-wwave*t));
+}
+real Twave = 1./wwave; // wave period in time
+cout << "Period = " << Twave << endl;
+func real phiana(real & t, real & x, real & y){
+  return (gravity*(Hwave/2.)*Twave)*(cosh(2.*pi*kwave*y*hwave)/cosh(2.*pi*kwave*hwave))*sin(2.*pi*(kwave*x-wwave*t))/(2.*pi);
+}
+func real dxphiana(real & t, real & x, real & y){
+  return (gravity*(Hwave/2.)*Twave)*(cosh(2.*pi*kwave*y*hwave)/cosh(2.*pi*kwave*hwave))*cos(2.*pi*(kwave*x-wwave*t))*kwave;
+}
+func real dyphiana(real & t, real & x, real & y){
+  return (gravity*(Hwave/2.)*Twave)*(sinh(2.*pi*kwave*y*hwave)*hwave/cosh(2.*pi*kwave*hwave))*sin(2.*pi*(kwave*x-wwave*t))*kwave;
+}
+func real mddxxmddzzphiana(real & t, real & x, real & y){
+  return 0;
+}
+func real dpdt(real & t,real & x){
+  return 0.;
+}
+
+real Tfinal=4.; // final time of the simulation
+bool starteta=true; // which of the two Verlet step is done first
+int Nbitermax=1000;
+
+// ** Numerical parameters: choose a FE space (for the potential), a Linalg solver and a precision
+// **** PRIMAL
+macro phiFE P1 //potential space
+macro uFE P0 //flux space (vector component)
+// **** PRIMAL MIXED
+macro phiuFE [uFE,uFE,phiFE]
+// **** DUAL MIXED
+macro uphiFE [RT0,P0] //flux (vector) space
+//
+macro mysolver sparsesolver // GMRES //CG //UMFPACK //EOM
+//
+real eps4solver = 1.e-10;
+real eps4directsolvepena = 0.; //1.e-10;
+
+// ** Output parameters: choose the level of outputs
+//
+int wait4plot = 1;
+//
+verbosity = 1;
+
