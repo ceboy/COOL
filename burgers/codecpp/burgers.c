@@ -57,9 +57,9 @@ int main(int argc, char* argv[])
   double     dx = abs(xright-xleft)/(double(Nx)); // regular grid space step
   // -- Trajectory
   double     T = 10.0;         // Final Time (TBR)
-  T = atoi(argv[2]);           // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 2
+  T = atof(argv[2]);           // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 2
   cout << "Final time: " << T << endl;
-  int    K0 = 1;               // Number of shocks (TBR)  
+  int    K0 = 1;               // Number of shocks (TBR)
   K0 = atoi(argv[3]);          // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 3
   cout << "Number of initial extremas: " << T << endl;
   // -- Source
@@ -89,14 +89,18 @@ int main(int argc, char* argv[])
   cout << "Using " << solvername << " Riemann solver with CFL = " << cfl << endl;
   // -- State initialization -------------------------------------------------------------
   double state[Nx+2][Mc];      // current state with 2 neighbouring ghost cells
-  for(int i=0; i<Nx; i++){
-    for(int m=0; m<Mc; m++){
-      state[i+1][m]=sin(2.*K0*M_PI*(double(i)/Nx)); // TBR ?
+  for(int m=0; m<Mc; m++){
+//     for(int i=0; i<Nx; i++){
+//       state[i+1][m]=sin(2.*K0*M_PI*(double(i)/Nx)); // TBR ?
+//     }
+    for(int i=1; i<=Nx; i++){
+      state[i][m]=sin(2.*K0*M_PI*(double(i)*dx)); // TBR ?
     }
   }
   double fluxes[Nx+1][Mc];    // current flux (size equals number of interfaces)
   double cintfc[Nx+1][Mc];    // current flux parameter
-  double fourier[Nx][Mc];     // current state Fourier coefficients
+  int Kf = Kx; // beware aliasing !! <<<<< maximal fourier coeff ??
+  double fourier[2*Kf][Mc];     // current state Fourier coefficients
   double mass[Mc];        // current state "mass"
   double normel2[Mc];         // current state "energy"
   double normelinf[Mc];       // current state "max"
@@ -119,31 +123,36 @@ int main(int argc, char* argv[])
   // -- Output
   string mystring; stringstream mystringstream;
   mystring.assign("res");
-  mystringstream << Nx; mystring.append(mystringstream.str());
+//  mystringstream << Nx; mystring.append(mystringstream.str());
+  mystringstream << argv[1]; mystring.append(mystringstream.str());
   mystringstream.str(string()); mystringstream.clear();
   mystring.append("T");
-  mystringstream << T; mystring.append(mystringstream.str());
+//  mystringstream << T; mystring.append(mystringstream.str());
+  mystringstream << argv[2]; mystring.append(mystringstream.str());
   mystringstream.str(string()); mystringstream.clear();
   mystring.append("K0");
-  mystringstream << K0; mystring.append(mystringstream.str());
+//  mystringstream << K0; mystring.append(mystringstream.str());
+  mystringstream << argv[3]; mystring.append(mystringstream.str());
   mystringstream.str(string()); mystringstream.clear();
   mystring.append("sigma");
-  mystringstream << sigma; mystring.append(mystringstream.str());
+//  mystringstream << sigma; mystring.append(mystringstream.str());
+  mystringstream << argv[4]; mystring.append(mystringstream.str());
   mystringstream.str(string()); mystringstream.clear();
   mystring.append("Kx");
-  mystringstream << Kx; mystring.append(mystringstream.str());
+//   mystringstream << Kx; mystring.append(mystringstream.str());
+  mystringstream << argv[5]; mystring.append(mystringstream.str());
   mystringstream.str(string()); mystringstream.clear();
 //   mystring.append("Mc");
 //   mystringstream << Mc; mystring.append(mystringstream.str());
   string mystring1 = mystring;
   string mystring2 = mystring;
-  mystring.append(".txt"); 
+  mystring.append(".txt");
   cout << "Outputfilename is " << mystring << endl;
   ofstream outputfile; outputfile.open(mystring.c_str());
   mystring1.append(".log");
   cout << "Logfilename is " << mystring1 << endl;
   ofstream outputfile1; outputfile1.open(mystring1.c_str());
-  mystring2.append(".dat"); 
+  mystring2.append(".dat");
   cout << "Postprocfilename is " << mystring2 << endl;
   ofstream outputfile2; outputfile2.open(mystring2.c_str());
   // Iterations: explicit FV scheme --------------------------------------------------
@@ -211,35 +220,43 @@ int main(int argc, char* argv[])
       state[i+1][m] -= (dt/dx)*fluxes[i+1][m];
     }
     }
-    // 4 -- Boundary conditions update
+    // 4 -- Source term (operator splitting)
+    for(int m=0; m<Mc; m++){
+    for(int k=1; k<=Kx; k++){
+fourier[2*(k-1)][m] = 0.; // to debug
+fourier[2*(k-1)+1][m] = 0.; // to debug
+      u1 = mt(); u2 = mt();
+      for(int i=1; i<=Nx; i++){
+        // ** a white-in-time stochastic source term white-in-space when beta = 0 and
+        state[i][m] += sqrt(dt)*sigma*sqrt(Nx/Kx)*(sqrt(-2.*log(u1))*cos(2.*M_PI*u2))*cos(2*k*M_PI*dx*i)/k;
+fourier[2*(k-1)][m] += cos(2*k*M_PI*dx*i)/k; // to debug
+        state[i][m] += sqrt(dt)*sigma*sqrt(Nx/Kx)*(sqrt(-2.*log(u1))*sin(2.*M_PI*u2))*sigma*sin(2*k*M_PI*dx*i)/k;
+fourier[2*(k-1)+1][m] += sin(2*k*M_PI*dx*i)/k; // to debug
+        // ** a time-independent source term to test determinstic long-time convergence
+        // state[i][m] += dt*sigma*cos(2*k*M_PI*dx*i);
+      }
+    }
+    }
+    // 5 -- Boundary conditions update
     for(int m=0; m<Mc; m++){
       state[0][m] = state[Nx][m];   // periodic
       state[Nx+1][m] = state[1][m]; // periodic
     }
-    // 5 -- Source term (operator splitting)
-    for(int m=0; m<Mc; m++){
-    for(int i=0; i<=Nx+1; i++){
-      for(int k=1; k<=Kx; k++){
-        u1 = mt(); u2 = mt();
-        state[i][m] += sqrt(dt/dx)*sqrt(-2.*log(u1))*cos(2.*M_PI*u2)*sigma*cos(2*k*M_PI*dx*i); //*sqrt(2/Kx)
-        //u1 = mt(); u2 = mt();
-        state[i][m] += sqrt(dt/dx)*sqrt(-2.*log(u1))*sin(2.*M_PI*u2)*sigma*sin(2*k*M_PI*dx*i); //*sqrt(2/Kx)
-// state[i][m] += dt*sigma*cos(2*k*M_PI*dx*i); // ** a time-independent source term to test determinstic long-time convergence
-      }
-    }
-    }
     // 6 -- Output: *** Fourier coeffs at successive times -- not necessarily on a grid if we use one single long Markov Chain !! (option) ***
     t += dt;
-    for(int m=0; m<Mc; m++){
-    for(int k=0; k<Nx/2; k++){
-      for(int i=0; i<Nx; i++){
-        fourier[k][m]=state[i][m]*cos(2.*k*M_PI*(double(i)/Nx))/sqrt(2.);
-      }
-      for(int i=0; i<Nx; i++){
-        fourier[Nx/2+k][m]=state[i][m]*sin(2.*k*M_PI*(double(i)/Nx))/sqrt(2.);
-      }
-    }
-    }    
+//     fourier = 0;
+//     for(int m=0; m<Mc; m++){
+//     for(int k=0; k<Kf; k++){
+//       for(int i=0; i<Nx; i++){
+//         //fourier[k][m]+=state[i][m]*cos(2.*k*M_PI*(double(i)/Nx))/sqrt(2.);
+//         fourier[2*k][m]+=state[i][m]*cos(2.*k*M_PI*(double(i)*dx-dx/2.))/sqrt(2.);
+//       //}
+//       //for(int i=0; i<Nx; i++){
+//         //fourier[Nx/2+k][m]+=state[i][m]*sin(2.*k*M_PI*(double(i)/Nx))/sqrt(2.);
+//         fourier[2*k+1][m]+=state[i][m]*sin(2.*k*M_PI*(double(i)*dx-dx/2.))/sqrt(2.);
+//       }
+//     }
+//     }
 // if(t>=tsav)
     {
     for(int m=0; m<Mc; m++){
@@ -254,14 +271,14 @@ int main(int argc, char* argv[])
     outputfile1 << dt << "  " << t << "  " << mass[0] << "  " << normel2[0] << "  " << normelinf[0] << "\n";
     for(int m=0; m<Mc; m++){
       for(int i=1; i<Nx+1; i++){ outputfile << state[i][m] << "  "; } outputfile << "\n"; // one period only: [0] and [Nx+1] excluded
-//       for(int i=0; i<Nx; i++){ outputfile2 << fourier[i][m] << "  "; } outputfile2 << "\n"; // to construct fourier coefficients
-      for(int i=0; i<Nx; i++){ outputfile2 << fourier[i][m] << "  "; } outputfile2 << "\n"; // to construct fourier coefficients
+      for(int kk=0; kk<2*Kf; kk++){ outputfile2 << fourier[kk][m] << "  "; } outputfile2 << "\n"; // to construct fourier coefficients
       cout << "Iteration " << nstep << " computed at time " << t << endl; //<< " and saved as " << nsav << endl;
     }
     }
   }
   outputfile.close();
   outputfile1.close();
+  outputfile2.close();
   //return 0;
   return EXIT_SUCCESS;
 

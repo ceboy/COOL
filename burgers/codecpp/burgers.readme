@@ -9,12 +9,12 @@ bitbucket
 
 2° Execution
 
-burgers.exe takes six arguments: ./burgers.exe 30 20 1 1 1 2
+burgers.exe takes six arguments: ./burgers.exe Nx T K0 sigma Kx Mc
 - first  :   integer Nx (the number of cells into which space is split)
-- second :   double  T  (final time)
+- second :   float  T  (final time)
 - third  :   integer K0 (number of shocks in the deterministic final solution : cos/sin period)
-- fourth :   double sigma (the stochastic source term amplitude)
-- fifth  :   integer Kx (the number of Fourier modes in the source)
+- fourth :   float sigma (the stochastic source term amplitude)
+- fifth  :   integer Kx (the number of Fourier modes in the source)  => good rule: less than Nx/2 with Nx even ?? (aliasing !!)
 - sixth  :   integer Mc (number of MC/MPI realizations)
 
 : for Mc in 100 1000; do  ./burgers.exe 100 1. ${Mc}; done;  done >> burgers.log &
@@ -25,10 +25,15 @@ burgers.exe takes six arguments: ./burgers.exe 30 20 1 1 1 2
 
 4° Work TO DO
 
-- A maillage fixé, plotter l'évolution en temps des coeffs de Fourrier, intégrale, norme L^2 et L^inf, viscosité effective ?
+- ajouter beta
+- a maillage fixé, plotter l'évolution en temps des coeffs de Fourrier, intégrale, norme L^2 et L^inf, viscosité effective ?
 - faire varier sigma avec 1 seule mode, puis 2 modes... avec quelques valeurs de beta (= 1, 2>1)
 - faire convergence en espace
 - faire varier la condition initiale
 - plotter la convergence en maillage de... la pente des coeffs de Fourier, pour différentes CI ?
 
-!! masse: indices
+
+TEST
+
+./burgers.exe 10 1.0 1 0.1 1 2
+
